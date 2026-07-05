@@ -1,0 +1,69 @@
+{
+  "version": 3,
+  "skills": {
+    "agentation": {
+      "source": "benjitaylor/agentation",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/benjitaylor/agentation.git",
+      "skillPath": "skills/agentation/SKILL.md",
+      "skillFolderHash": "4ffe0f18c30582eb22f9b81874933fbadee669b0",
+      "installedAt": "2026-01-23T13:25:59.759Z",
+      "updatedAt": "2026-01-23T13:25:59.759Z"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "3013fdeb8a11b10b1eb795ec3ae8bfca38f7c26d",
+      "installedAt": "2026-02-12T23:07:22.042Z",
+      "updatedAt": "2026-03-21T00:44:03.981Z"
+    },
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
+      "skillPath": "skills/agent-browser/SKILL.md",
+      "skillFolderHash": "c1470a475a0472fceda2401ea6763708a91680a8",
+      "installedAt": "2026-03-18T13:36:08.640Z",
+      "updatedAt": "2026-05-27T02:28:43.311Z"
+    },
+    "dev-browser": {
+      "source": "sawyerhood/dev-browser",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sawyerhood/dev-browser.git",
+      "skillPath": "skills/dev-browser/SKILL.md",
+      "skillFolderHash": "71aa88dcc39949f014a7c87f68bc400843498da3",
+      "pluginName": "dev-browser",
+      "installedAt": "2026-03-28T01:30:39.078Z",
+      "updatedAt": "2026-03-28T01:30:39.078Z"
+    },
+    "react:components": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/google-labs-code/stitch-skills.git",
+      "skillPath": "skills/react-components/SKILL.md",
+      "skillFolderHash": "c201fcfad2b656a7e4276bd2a4d10611a79321f8",
+      "installedAt": "2026-04-01T03:43:58.537Z",
+      "updatedAt": "2026-04-01T03:43:58.537Z"
+    }
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "firebender",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-cli",
+    "opencode",
+    "warp",
+    "claude-code"
+  ],
+  "dismissed": {
+    "findSkillsPrompt": true
+  }
+}
