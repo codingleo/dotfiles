@@ -1,0 +1,12 @@
+stow
+zsh
+git
+curl
+ca-certificates
+gnupg
+unzip
+build-essential
+ripgrep
+fd-find
+nodejs
+npm
