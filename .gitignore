@@ -19,6 +19,8 @@ log/
 *.log
 .DS_Store
 history.jsonl
+__pycache__/
+*.pyc
 
 # SDD scratch
 .superpowers/

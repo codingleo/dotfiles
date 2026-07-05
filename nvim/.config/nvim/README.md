@@ -14,14 +14,8 @@ This repository contains a self-contained Neovim setup driven by [`lazy.nvim`](h
 ## Getting Started
 
 1. Ensure Neovim 0.9+ with LuaJIT is installed.
-2. Backup or remove any existing `~/.config/nvim`.
-3. Clone this repository into `~/.config/nvim`:
-
-   ```bash
-   git clone <this repo> ~/.config/nvim
-   ```
-
-4. Start Neovim. On the first launch, `lazy.nvim` bootstraps itself and installs the plugins listed in `init.lua`. The generated plugin versions are tracked in `lazy-lock.json`.
+2. This config now lives in the [dotfiles repo](https://github.com/codingleo/dotfiles) and is installed into `~/.config/nvim` by running `./install.sh`, which uses GNU Stow to symlink this directory.
+3. Start Neovim. On the first launch, `lazy.nvim` bootstraps itself and installs the plugins listed in `init.lua`. The generated plugin versions are tracked in `lazy-lock.json`.
 
 To install/upgrade plugins later, run `:Lazy sync` inside Neovim.
 

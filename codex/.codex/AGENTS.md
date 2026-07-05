@@ -6,4 +6,4 @@
 *No context yet. Complete your first session and context will appear here.*
 </claude-mem-context>
 
-@/Users/leonardoribeiro/.codex/RTK.md
+@RTK.md
