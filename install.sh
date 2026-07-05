@@ -17,6 +17,7 @@ install_macos() {
   brew bundle --file="$DOTFILES_DIR/Brewfile" || warn "brew bundle had failures; continuing"
   command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash || warn "claude install failed"
   command -v pi >/dev/null 2>&1 || npm install -g @earendil-works/pi-coding-agent || warn "pi install failed"
+  command -v codex >/dev/null 2>&1 || npm install -g @openai/codex || warn "codex install failed"
 }
 
 install_ubuntu() {
