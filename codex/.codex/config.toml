@@ -1,0 +1,148 @@
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+personality = "pragmatic"
+notify = [ "/Users/leonardoribeiro/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended" ]
+approvals_reviewer = "guardian_subagent"
+service_tier = "fast"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[projects."/Users/leonardoribeiro/workspace/verstand/olhaminha.bio"]
+trust_level = "trusted"
+
+[projects."/Users/leonardoribeiro/workspace/verstand/helm"]
+trust_level = "trusted"
+
+[projects."/Users/leonardoribeiro/Documents/New project"]
+trust_level = "trusted"
+
+[projects."/Users/leonardoribeiro/workspace/verstand/verstand-portal"]
+trust_level = "trusted"
+
+[projects."/Users/leonardoribeiro/workspace/verstand/dataGov"]
+trust_level = "trusted"
+
+[projects."/Users/leonardoribeiro/Documents/Codex/2026-05-17/how-can-we-use-the-new"]
+trust_level = "trusted"
+
+[projects."/Users/leonardoribeiro"]
+trust_level = "trusted"
+
+[features]
+js_repl = false
+multi_agent = true
+apps = true
+prevent_idle_sleep = true
+terminal_resize_reflow = true
+memories = true
+external_migration = true
+goals = true
+
+[mcp_servers.posthog]
+url = "https://mcp.posthog.com/mcp"
+
+[mcp_servers.node_repl]
+args = []
+command = "/Applications/Codex.app/Contents/Resources/cua_node/bin/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = "/Applications/Codex.app/Contents/Resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/Applications/Codex.app/Contents/Resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/leonardoribeiro/.codex"
+CODEX_HOME = "/Users/leonardoribeiro/.codex"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "5ee3754ef68f803b9cebf40e30f94ea22aaf446de1a0a24b109180fa2ae0bd3e"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.616.71553"
+CODEX_CLI_PATH = "/Applications/Codex.app/Contents/Resources/codex"
+
+[mcp_servers.pencil]
+command = "/Applications/Pencil.app/Contents/Resources/app.asar.unpacked/out/mcp-server-darwin-arm64"
+args = [ "--app", "desktop", "--agent", "codexCLI" ]
+
+[marketplaces.openai-bundled]
+last_updated = "2026-06-23T13:22:16Z"
+source_type = "local"
+source = "/Users/leonardoribeiro/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-06-24T05:15:23Z"
+source_type = "local"
+source = "/Users/leonardoribeiro/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[marketplaces.claude-plugins-official]
+last_updated = "2026-06-27T20:20:25Z"
+last_revision = "30a213f9b39e3c40b0073bb5b41081da9f2b6634"
+source_type = "git"
+source = "https://github.com/anthropics/claude-plugins-official.git"
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."remotion@openai-curated"]
+enabled = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."expo@openai-curated"]
+enabled = true
+
+[plugins."stripe@claude-plugins-official"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[[skills.config]]
+name = "browser-use:browser"
+enabled = false
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_create_pull_request]
+approval_mode = "approve"
+
+[notice]
+fast_default_opt_out = true
+
+[notice.external_config_migration_prompts]
+home_last_prompted_at = 1782175323
+
+[notice.external_config_migration_prompts.project_last_prompted_at]
+"/Users/leonardoribeiro" = 1782175323
+
+[desktop]
+ambient-suggestions-enabled = true
+preventSleepWhileRunning = true
+keepRemoteControlAwakeWhilePluggedIn = true
+conversationDetailMode = "STEPS_COMMANDS"
+default-service-tier = "priority"
+
+[desktop.open-in-target-preferences]
+global = "ghostty"
+
+[desktop.open-in-target-preferences.perPath]
+"/Users/leonardoribeiro/Documents/New project" = "xcode"
+"/Users/leonardoribeiro/workspace/verstand/dataGov" = "ghostty"
