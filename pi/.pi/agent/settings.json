@@ -1,0 +1,15 @@
+{
+  "lastChangelogVersion": "0.75.5",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "high",
+  "packages": [
+    "npm:pi-subagents",
+    "npm:context-mode",
+    "npm:pi-markdown-preview",
+    "npm:pi-crew"
+  ],
+  "terminal": {
+    "showTerminalProgress": true
+  }
+}

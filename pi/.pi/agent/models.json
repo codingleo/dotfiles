@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/earendil-works/pi-mono/main/packages/ai/schemas/models.schema.json",
+  "comment": "Computer-scope (user-global) addition: Kimi K 2.6 on Cerebras Inference. Uses the built-in 'cerebras' provider. Set CEREBRAS_API_KEY or run /login cerebras. Hot-reloads on /model.",
+  "providers": {
+    "cerebras": {
+      "models": [
+        {
+          "id": "kimi-k2.6",
+          "name": "Kimi K 2.6 (Cerebras)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 262144,
+          "maxTokens": 131072,
+          "cost": {
+            "input": 0.15,
+            "output": 0.60,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "comment": "Moonshot Kimi-K2.6 via Cerebras Inference (https://inference-docs.cerebras.ai). Fast dedicated inference. Verify exact 'id' and specs in your Cerebras dashboard / model catalog. Adjust cost/context if the dedicated endpoint uses different values."
+        }
+      ]
+    }
+  }
+}
