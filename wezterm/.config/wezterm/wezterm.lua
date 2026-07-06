@@ -1,247 +1,157 @@
+-- ~/.config/wezterm/wezterm.lua
+-- Catppuccin Mocha • JetBrainsMono Nerd Font • tuned for software engineering.
+-- Docs: https://wezfurlong.org/wezterm/config/files.html
+
 local wezterm = require("wezterm")
 local act = wezterm.action
-
 local config = wezterm.config_builder()
 
-config.default_prog = { "/bin/zsh", "-l" }
+-- Load the custom tab bar (defined in tabbar.lua next to this file).
+require("tabbar").setup(config)
+
+--------------------------------------------------------------------------------
+-- Appearance
+--------------------------------------------------------------------------------
+config.color_scheme = "Catppuccin Mocha"
 
 config.font = wezterm.font_with_fallback({
-  "JetBrainsMono Nerd Font",
-  "JetBrains Mono",
-  "Menlo",
+	{ family = "JetBrainsMono Nerd Font", weight = "Medium" },
+	"Symbols Nerd Font Mono", -- glyph fallback
+	"Apple Color Emoji",
 })
-config.font_size = 13.5
-config.line_height = 1.08
+config.font_size = 14.0
+config.line_height = 1.05
+config.cell_width = 1.0
 
-config.colors = {
-  foreground = "#d6deeb",
-  background = "#101216",
-  cursor_bg = "#7dd3fc",
-  cursor_border = "#7dd3fc",
-  cursor_fg = "#101216",
-  selection_bg = "#334155",
-  selection_fg = "#f8fafc",
-  scrollbar_thumb = "#475569",
-  split = "#334155",
-  ansi = {
-    "#151820",
-    "#f87171",
-    "#86efac",
-    "#fde68a",
-    "#93c5fd",
-    "#c4b5fd",
-    "#67e8f9",
-    "#d6deeb",
-  },
-  brights = {
-    "#475569",
-    "#fca5a5",
-    "#bbf7d0",
-    "#fef3c7",
-    "#bfdbfe",
-    "#ddd6fe",
-    "#a5f3fc",
-    "#f8fafc",
-  },
-  tab_bar = {
-    background = "#0b0d12",
-    active_tab = {
-      bg_color = "#1e293b",
-      fg_color = "#f8fafc",
-      intensity = "Bold",
-    },
-    inactive_tab = {
-      bg_color = "#111827",
-      fg_color = "#94a3b8",
-    },
-    inactive_tab_hover = {
-      bg_color = "#1f2937",
-      fg_color = "#e2e8f0",
-    },
-    new_tab = {
-      bg_color = "#111827",
-      fg_color = "#94a3b8",
-    },
-    new_tab_hover = {
-      bg_color = "#1f2937",
-      fg_color = "#e2e8f0",
-    },
-  },
-}
+-- Ligatures + stylistic sets. Set to {} to turn ligatures off.
+config.harfbuzz_features = { "calt=1", "clig=1", "liga=1", "ss01", "ss19", "zero" }
 
-config.window_background_opacity = 0.98
+config.freetype_load_target = "Normal"
+config.freetype_render_target = "HorizontalLcd"
 
-local is_mac = wezterm.target_triple:find("apple") ~= nil
-if is_mac then
-  config.macos_window_background_blur = 18
-end
-
-config.window_padding = {
-  left = 8,
-  right = 8,
-  top = 6,
-  bottom = 4,
-}
-
-config.initial_cols = 150
-config.initial_rows = 42
-config.scrollback_lines = 100000
-config.enable_scroll_bar = true
-config.window_close_confirmation = "AlwaysPrompt"
+-- Window / chrome
+config.window_background_opacity = 0.94
+config.macos_window_background_blur = 30
+config.window_decorations = "RESIZE" -- keep resize handles, drop the title bar
+config.window_padding = { left = 14, right = 14, top = 10, bottom = 8 }
+config.initial_cols = 120
+config.initial_rows = 34
 config.adjust_window_size_when_changing_font_size = false
 
-config.hide_tab_bar_if_only_one_tab = false
-config.use_fancy_tab_bar = false
-config.tab_max_width = 32
+-- Cursor
+config.default_cursor_style = "BlinkingBar"
+config.cursor_blink_rate = 550
+config.cursor_blink_ease_in = "EaseOut"
+config.cursor_blink_ease_out = "EaseOut"
+config.animation_fps = 60
+config.max_fps = 120
 
+-- Scrollback / bell
+config.scrollback_lines = 20000
 config.audible_bell = "Disabled"
+config.visual_bell = {
+	fade_in_duration_ms = 60,
+	fade_out_duration_ms = 120,
+	target = "CursorColor",
+}
+
+-- Misc quality-of-life
+config.hide_mouse_cursor_when_typing = true
+config.warn_about_missing_glyphs = false
 config.check_for_updates = false
-config.automatically_reload_config = true
-config.set_environment_variables = {
-  COLORTERM = "truecolor",
-}
+config.front_end = "WebGpu" -- GPU-accelerated rendering
 
-config.launch_menu = {
-  {
-    label = "Codex",
-    args = { "/bin/zsh", "-lc", "FORCE_COLOR=1 codex; exec /bin/zsh -l" },
-  },
-  {
-    label = "Claude",
-    args = { "/bin/zsh", "-lc", "FORCE_COLOR=1 claude; exec /bin/zsh -l" },
-  },
-  {
-    label = "Gemini",
-    args = { "/bin/zsh", "-lc", "FORCE_COLOR=1 gemini; exec /bin/zsh -l" },
-  },
-  {
-    label = "OpenCode",
-    args = { "/bin/zsh", "-lc", "FORCE_COLOR=1 opencode; exec /bin/zsh -l" },
-  },
-  {
-    label = "Aider",
-    args = { "/bin/zsh", "-lc", "FORCE_COLOR=1 aider; exec /bin/zsh -l" },
-  },
-}
-
-config.leader = {
-  key = "Space",
-  mods = "CTRL",
-  timeout_milliseconds = 1000,
-}
+--------------------------------------------------------------------------------
+-- Key bindings — tuned for coding (splits, tabs, copy-mode, quick actions)
+--   MULTIPLEXER: leader is CTRL+SPACE (tmux-style). Press it, then a follow-up
+--   key: `|` splits side-by-side, `-` splits stacked, h/j/k/l move, etc.
+--------------------------------------------------------------------------------
+config.leader = { key = "phys:Space", mods = "CTRL", timeout_milliseconds = 2000 }
 
 config.keys = {
-  {
-    key = "|",
-    mods = "LEADER|SHIFT",
-    action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }),
-  },
-  {
-    key = "\\",
-    mods = "LEADER",
-    action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }),
-  },
-  {
-    key = "-",
-    mods = "LEADER",
-    action = act.SplitVertical({ domain = "CurrentPaneDomain" }),
-  },
-  {
-    key = "h",
-    mods = "CMD|ALT",
-    action = act.ActivatePaneDirection("Left"),
-  },
-  {
-    key = "j",
-    mods = "CMD|ALT",
-    action = act.ActivatePaneDirection("Down"),
-  },
-  {
-    key = "k",
-    mods = "CMD|ALT",
-    action = act.ActivatePaneDirection("Up"),
-  },
-  {
-    key = "l",
-    mods = "CMD|ALT",
-    action = act.ActivatePaneDirection("Right"),
-  },
-  {
-    key = "h",
-    mods = "CMD|ALT|SHIFT",
-    action = act.AdjustPaneSize({ "Left", 5 }),
-  },
-  {
-    key = "j",
-    mods = "CMD|ALT|SHIFT",
-    action = act.AdjustPaneSize({ "Down", 3 }),
-  },
-  {
-    key = "k",
-    mods = "CMD|ALT|SHIFT",
-    action = act.AdjustPaneSize({ "Up", 3 }),
-  },
-  {
-    key = "l",
-    mods = "CMD|ALT|SHIFT",
-    action = act.AdjustPaneSize({ "Right", 5 }),
-  },
-  {
-    key = "Enter",
-    mods = "CMD|SHIFT",
-    action = act.TogglePaneZoomState,
-  },
-  {
-    key = "Enter",
-    mods = "SHIFT",
-    action = act.SendString("\n"),
-  },
-  {
-    key = "P",
-    mods = "CMD|SHIFT",
-    action = act.ActivateCommandPalette,
-  },
-  {
-    key = "W",
-    mods = "CMD|SHIFT",
-    action = act.ShowLauncherArgs({ flags = "FUZZY|WORKSPACES" }),
-  },
-  {
-    key = "L",
-    mods = "CMD|SHIFT",
-    action = act.ShowLauncherArgs({ flags = "FUZZY|LAUNCH_MENU_ITEMS" }),
-  },
+	{ key = "Enter", mods = "SHIFT", action = act.SendString("\27[13;2u") },
+	-- Splits (leader then | or -). `|` = vertical divider => panes side by side.
+	-- `-` = horizontal divider => panes stacked. New pane inherits the cwd.
+	{ key = "mapped:|", mods = "LEADER", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "mapped:|", mods = "LEADER|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "mapped:|", mods = "LEADER|ALT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "mapped:|", mods = "LEADER|SHIFT|ALT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "-", mods = "LEADER", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
+	-- Backslash also works for side-by-side if you don't want to reach for Shift.
+	{ key = "\\", mods = "LEADER", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "\\", mods = "LEADER|SHIFT", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "d", mods = "CMD", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
+	{ key = "d", mods = "CMD|SHIFT", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
+
+	-- Move between panes: leader then h/j/k/l (vim/tmux style), or CMD+alt+arrows
+	{ key = "h", mods = "LEADER", action = act.ActivatePaneDirection("Left") },
+	{ key = "j", mods = "LEADER", action = act.ActivatePaneDirection("Down") },
+	{ key = "k", mods = "LEADER", action = act.ActivatePaneDirection("Up") },
+	{ key = "l", mods = "LEADER", action = act.ActivatePaneDirection("Right") },
+	{ key = "LeftArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection("Left") },
+	{ key = "RightArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection("Right") },
+	{ key = "UpArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection("Up") },
+	{ key = "DownArrow", mods = "CMD|ALT", action = act.ActivatePaneDirection("Down") },
+
+	-- Pane management: zoom (fullscreen a pane), close, swap
+	{ key = "z", mods = "LEADER", action = act.TogglePaneZoomState },
+	{ key = "x", mods = "LEADER", action = act.CloseCurrentPane({ confirm = true }) },
+	{ key = "w", mods = "CMD", action = act.CloseCurrentPane({ confirm = true }) },
+
+	-- Resize panes: leader then s, then h/j/k/l (repeatable; Esc/Enter to exit)
+	{ key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "resize", one_shot = false, timeout_milliseconds = 1000 }) },
+
+	-- Tabs (leader c = new tab, like tmux "new window")
+	{ key = "c", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
+	{ key = "t", mods = "CMD", action = act.SpawnTab("CurrentPaneDomain") },
+	{ key = "[", mods = "CMD|SHIFT", action = act.ActivateTabRelative(-1) },
+	{ key = "]", mods = "CMD|SHIFT", action = act.ActivateTabRelative(1) },
+	{ key = "p", mods = "LEADER", action = act.ActivateTabRelative(-1) },
+	{ key = "n", mods = "LEADER", action = act.ActivateTabRelative(1) },
+
+	-- Copy mode & search (great for reading logs / grabbing output)
+	{ key = "[", mods = "LEADER", action = act.ActivateCopyMode },
+	{ key = "f", mods = "CMD", action = act.Search({ CaseInSensitiveString = "" }) },
+
+	-- Quick actions
+	{ key = "k", mods = "CMD", action = act.ClearScrollback("ScrollbackAndViewport") },
+	{ key = "r", mods = "LEADER", action = act.ReloadConfiguration },
+	{ key = "Enter", mods = "CMD", action = act.ToggleFullScreen },
+	-- Font size
+	{ key = "=", mods = "CMD", action = act.IncreaseFontSize },
+	{ key = "-", mods = "CMD", action = act.DecreaseFontSize },
+	{ key = "0", mods = "CMD", action = act.ResetFontSize },
+	-- Command palette / launcher
+	{ key = "P", mods = "CMD|SHIFT", action = act.ActivateCommandPalette },
 }
 
-local function basename(path)
-  return path:gsub("/*$", ""):match("([^/]+)$") or path
+-- Jump to tab N with CMD+number
+for i = 1, 9 do
+	table.insert(config.keys, {
+		key = tostring(i),
+		mods = "CMD",
+		action = act.ActivateTab(i - 1),
+	})
 end
 
-wezterm.on("format-tab-title", function(tab)
-  local title = tab.tab_title
-  if title == "" then
-    title = tab.active_pane.title
-  end
+config.key_tables = {
+	resize = {
+		{ key = "h", action = act.AdjustPaneSize({ "Left", 3 }) },
+		{ key = "l", action = act.AdjustPaneSize({ "Right", 3 }) },
+		{ key = "k", action = act.AdjustPaneSize({ "Up", 3 }) },
+		{ key = "j", action = act.AdjustPaneSize({ "Down", 3 }) },
+		{ key = "Escape", action = "PopKeyTable" },
+		{ key = "Enter", action = "PopKeyTable" },
+	},
+}
 
-  return {
-    { Text = " " .. tab.tab_index + 1 .. ":" .. title .. " " },
-  }
-end)
-
-wezterm.on("update-right-status", function(window, pane)
-  local cwd = pane:get_current_working_dir()
-  local cwd_label = ""
-
-  if cwd then
-    cwd_label = basename(tostring(cwd):gsub("^file://[^/]*", ""))
-  end
-
-  window:set_right_status(wezterm.format({
-    { Foreground = { Color = "#94a3b8" } },
-    { Text = " " .. window:active_workspace() },
-    { Text = cwd_label ~= "" and (" | " .. cwd_label) or "" },
-    { Text = " | " .. wezterm.strftime("%H:%M") .. " " },
-  }))
-end)
+-- URLs, file paths, git hashes → clickable / quick-select friendly
+config.mouse_bindings = {
+	{
+		event = { Up = { streak = 1, button = "Left" } },
+		mods = "CMD",
+		action = act.OpenLinkAtMouseCursor,
+	},
+}
 
 return config
