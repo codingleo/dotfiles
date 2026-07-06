@@ -97,7 +97,7 @@
   "tui": "fullscreen",
   "prefersReducedMotion": true,
   "skipDangerousModePermissionPrompt": true,
-  "theme": "light",
+  "theme": "dark",
   "verbose": true,
   "preferredNotifChannel": "iterm2_with_bell",
   "showTurnDuration": false,

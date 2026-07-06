@@ -121,6 +121,9 @@ enabled = false
 [tui.model_availability_nux]
 "gpt-5.5" = 4
 
+[tui.keymap.editor]
+insert_newline = "shift-enter"
+
 [apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_create_pull_request]
 approval_mode = "approve"
 
