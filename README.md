@@ -23,7 +23,7 @@ Each top-level directory is a stow package mirroring `$HOME`:
 
 | Package | Target | Contents |
 |---|---|---|
-| `zsh` | `~/.zshrc`, `~/.zprofile`, `~/.config/zsh/` | shell config |
+| `zsh` | `~/.zshrc`, `~/.zprofile`, `~/.p10k.zsh`, `~/.config/zsh/` | shell config + prompt theme |
 | `wezterm` | `~/.config/wezterm/` | terminal config |
 | `nvim` | `~/.config/nvim/` | editor config + `lazy-lock.json` |
 | `claude` | `~/.claude/` | settings, CLAUDE.md, agents, custom skills |

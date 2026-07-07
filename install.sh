@@ -8,6 +8,41 @@ PACKAGES=(zsh wezterm nvim agents-shared claude codex opencode pi)
 log()  { printf '\033[1;34m[dotfiles]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[dotfiles] WARN:\033[0m %s\n' "$*"; }
 
+ensure_git_repo() {
+  local url="$1"
+  local dir="$2"
+
+  if [ -d "$dir/.git" ]; then
+    git -C "$dir" pull --ff-only || warn "could not update $dir"
+    return
+  fi
+
+  if [ -e "$dir" ]; then
+    warn "$dir exists but is not a git checkout; leaving it untouched"
+    return
+  fi
+
+  git clone --depth=1 "$url" "$dir" || warn "could not clone $url"
+}
+
+install_zsh_aesthetics() {
+  if [ -d "$HOME/.oh-my-zsh/.git" ]; then
+    git -C "$HOME/.oh-my-zsh" pull --ff-only || warn "could not update oh-my-zsh"
+  elif [ -e "$HOME/.oh-my-zsh" ]; then
+    warn "$HOME/.oh-my-zsh exists but is not a git checkout; leaving it untouched"
+  else
+    git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" || warn "oh-my-zsh install failed"
+  fi
+
+  local custom="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+  mkdir -p "$custom/themes" "$custom/plugins"
+
+  ensure_git_repo https://github.com/romkatv/powerlevel10k.git "$custom/themes/powerlevel10k"
+  ensure_git_repo https://github.com/zsh-users/zsh-autosuggestions.git "$custom/plugins/zsh-autosuggestions"
+  ensure_git_repo https://github.com/zsh-users/zsh-syntax-highlighting.git "$custom/plugins/zsh-syntax-highlighting"
+  ensure_git_repo https://github.com/zsh-users/zsh-history-substring-search.git "$custom/plugins/history-substring-search"
+}
+
 install_macos() {
   if ! command -v brew >/dev/null 2>&1; then
     log "installing Homebrew"
@@ -75,6 +110,7 @@ main() {
     Linux)  install_ubuntu ;;
     *) warn "unsupported OS $(uname -s); skipping tool install" ;;
   esac
+  install_zsh_aesthetics
 
   command -v stow >/dev/null 2>&1 || { echo "FATAL: stow not installed" >&2; exit 1; }
 
