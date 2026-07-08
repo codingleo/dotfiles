@@ -1,7 +1,7 @@
 # dotfiles
 
 Configs for zsh, WezTerm, Neovim, and the AI coding CLIs (claude-code, codex,
-opencode, pi), managed with [GNU Stow](https://www.gnu.org/software/stow/).
+opencode, pi, grok), managed with [GNU Stow](https://www.gnu.org/software/stow/).
 Used on 2 MacBooks (macOS) and 1 Ubuntu PC — identical config everywhere.
 
 ## New machine
@@ -15,7 +15,7 @@ cd ~/dotfiles && ./install.sh
 installers on Ubuntu), backs up any conflicting files to
 `~/dotfiles-backup-<timestamp>/`, and symlinks every package into `$HOME`.
 Idempotent — re-run it anytime. Then log in per-machine: `claude`, `codex`,
-`opencode`, and `pi` keep auth local (never in this repo).
+`opencode`, `pi`, and `grok` keep auth local (never in this repo).
 
 ## Layout
 
@@ -30,7 +30,13 @@ Each top-level directory is a stow package mirroring `$HOME`:
 | `codex` | `~/.codex/` | config.toml, AGENTS.md, rules |
 | `opencode` | `~/.config/opencode/` | configs + custom skills |
 | `pi` | `~/.pi/agent/` | settings, models |
+| `grok` | `~/.grok/skills/` | global skills (shared pool + claude customs via symlinks) |
 | `agents-shared` | `~/.agents/` | shared skills pool + lock file |
+
+Shared skills live once under `agents-shared` and are symlinked into `claude`,
+`opencode`, and `grok`. Claude-only custom skills live under `claude` and are
+also linked into `grok` so Grok Build sees the same global set without
+duplicating content.
 
 ## Day to day
 

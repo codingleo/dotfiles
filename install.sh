@@ -3,7 +3,7 @@ set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="$HOME/dotfiles-backup-$(date +%Y%m%d-%H%M%S)"
-PACKAGES=(zsh wezterm nvim agents-shared claude codex opencode pi)
+PACKAGES=(zsh wezterm nvim agents-shared claude codex opencode pi grok)
 
 log()  { printf '\033[1;34m[dotfiles]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[dotfiles] WARN:\033[0m %s\n' "$*"; }
@@ -18,6 +18,7 @@ install_macos() {
   command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash || warn "claude install failed"
   command -v pi >/dev/null 2>&1 || npm install -g @earendil-works/pi-coding-agent || warn "pi install failed"
   command -v codex >/dev/null 2>&1 || npm install -g @openai/codex || warn "codex install failed"
+  command -v grok >/dev/null 2>&1 || curl -fsSL https://x.ai/cli/install.sh | bash || warn "grok install failed"
 }
 
 install_ubuntu() {
@@ -47,6 +48,7 @@ install_ubuntu() {
   command -v codex    >/dev/null 2>&1 || sudo npm install -g @openai/codex || warn "codex install failed"
   command -v opencode >/dev/null 2>&1 || curl -fsSL https://opencode.ai/install | bash || warn "opencode install failed"
   command -v pi       >/dev/null 2>&1 || sudo npm install -g @earendil-works/pi-coding-agent || warn "pi install failed"
+  command -v grok     >/dev/null 2>&1 || curl -fsSL https://x.ai/cli/install.sh | bash || warn "grok install failed"
   command -v rtk >/dev/null 2>&1 || warn "rtk not found — zsh/claude hooks reference it (Homebrew on Linux: brew install rtk)"
   command -v bd  >/dev/null 2>&1 || warn "bd (beads) not found — claude hooks reference it (brew install beads)"
 }
