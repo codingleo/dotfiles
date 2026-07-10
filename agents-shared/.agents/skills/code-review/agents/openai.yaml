@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Coordinate six expert code-review lenses"
+  default_prompt: "Use $code-review to inspect the current branch and report only verified, actionable findings."
