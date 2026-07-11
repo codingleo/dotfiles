@@ -38,6 +38,10 @@ Shared skills live once under `agents-shared` and are symlinked into `claude`,
 also linked into `grok` so Grok Build sees the same global set without
 duplicating content.
 
+Notable shared skill: **`local-visual-test`** — merged local visual QA (preflight,
+Turbopack/browser-cache ladder, dev-browser recipes). `/test-feature` is a thin
+alias that loads it.
+
 ## Day to day
 
 Configs in `$HOME` are symlinks into this repo — edit them in place, then:
