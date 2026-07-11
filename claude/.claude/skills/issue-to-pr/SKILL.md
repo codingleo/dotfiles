@@ -1,101 +1,119 @@
 ---
 name: issue-to-pr
-description: End-to-end workflow that turns a single GitHub or beads issue into a merged-ready pull request using strict BDD+TDD discipline. Given an issue reference (a beads id like olhaminha.bio-xxx, or a GitHub issue number/#/URL), it writes Gherkin acceptance features for the happy path and edge cases, validates them with three parallel expert lenses (business-analyst, QA/edge-case, architect), writes failing unit/integration/E2E tests (red), implements the minimum code to make them pass (green), runs a visual check via /visual-app-verify, loops on any failure, then commits logically, pushes, verifies the push, opens a PR (confirming the base branch with the user), and hands off a summary with browser test steps. Use when the user says "solve this issue", "issue-to-pr", "take issue X to a PR", "implement issue #N", "resolve beads issue", or points at an issue and asks for a full TDD implementation-to-PR pass.
+description: >
+  End-to-end, app-agnostic workflow that turns a single tracker issue (GitHub, beads,
+  or similar) into a merge-ready pull request using strict BDD+TDD discipline. Discovers
+  the current repo’s conventions, runs a product-grounded Gherkin/acceptance discovery
+  pipeline (parallel sub-agents for target users/personas, real feature workflows, and
+  web UX-affordance research), generates acceptance features from that synthesis, validates
+  them with three expert lenses (business-analyst, QA/edge-case, architect), writes failing
+  tests (red), implements the minimum to pass (green), optionally runs project visual
+  verification, loops on failure, then commits logically, pushes, verifies the push, opens
+  a PR (confirming the base branch with the user), and hands off a summary with manual
+  test steps. Use when the user says "solve this issue", "issue-to-pr", "take issue X to a
+  PR", "implement issue #N", "resolve beads issue", or points at an issue and asks for a
+  full TDD implementation-to-PR pass.
 ---
 
 # issue-to-pr
 
-Drive one issue from intake to an open PR without skipping the project's Red → Green → Refactor + Gherkin acceptance gates. Claude orchestrates; sub-agents do parallel validation.
+Drive one issue from intake to an open PR without skipping Red → Green → Refactor and acceptance gates. Works in **any** application repository: discover stack, product, and conventions first; never assume a specific product, runtime, or architecture.
 
-## Non-negotiables (this repo)
+Orchestrator coordinates; sub-agents run parallel discovery and validation.
 
-Read `references/project-conventions.md` **before starting** — it holds the exact commands, URLs, credentials, and gotchas. The load-bearing ones:
+## Non-negotiables
 
-- **Branch off `develop`, never commit to `develop`/`main`.** PRs target `develop` by default.
-- **Behavior change ⇒ failing test FIRST.** Confirm it fails for the *right reason* before implementing. Tests-after is not acceptable.
-- **Browser/E2E URL is `megazord.olhaminha.bio`, never `localhost:3000`.** Don't restart the user's dev server; ask them to.
-- **Never `git add -A`** (sweeps the user's WIP). Stage named files only.
-- **Never leak local filesystem paths** into commits/PRs/generated files.
-- Runtime is **Bun**: `bun test`, `bun run typecheck`, `bun run gherkin:generate`.
-- Generated Gherkin under `tests/features/_generated/**` **is committed**.
+Read `references/project-conventions.md` at **Step 0** and build a **session conventions card** from *this* repo. Universal rules (always):
+
+- **Behavior change ⇒ failing test FIRST.** Confirm it fails for the *right reason* before implementing.
+- **Never `git add -A` / `git add .`** — stage named paths only.
+- **Never leak absolute local filesystem paths** into commits/PRs/generated files.
+- **Never commit on the protected default branch** — branch first; PRs target the repo default (confirm with user).
+- **After push, verify it landed.**
+- **Do not invent product decisions** the issue leaves open — ask or file a follow-up.
+- Runtime, test commands, E2E URL, Gherkin paths, architecture, and credentials come from the **discovered** conventions card — not from memory of another app.
 
 ## Workflow
 
-Track the run with beads: at intake create/claim the issue and set `in_progress`; at the end `bd sync`. Use a TodoWrite/Task list mirroring the steps below so progress is visible.
+Track progress with a TodoWrite/Task list mirroring the steps below. If the project uses a local tracker (e.g. beads), claim/sync issues with that tool; otherwise use GitHub (or whatever the user pointed at).
 
-### Step 0 — Intake & branch
+### Step 0 — Intake, conventions & branch
 
-1. Resolve the issue reference from the invocation args:
-   - Matches `olhaminha.bio-*` → beads: `bd show <id>`.
-   - A bare number / `#N` / GitHub URL → `gh issue view <n> --comments`.
-   - If ambiguous, ask which source.
-2. Extract the **user-visible behavior**, acceptance criteria, and any constraints. If the issue is thin, investigate the cited code before proceeding (dispatch an `Explore` agent for anything more than a couple of files).
-3. Ensure a beads issue tracks the work (create one referencing the GH issue if needed) and mark it `in_progress`.
-4. Create the branch: `git checkout develop && git pull --ff-only && git checkout -b <type>/<kebab-slug>` (type ∈ feat|fix|hotfix|chore). Confirm you are **not** on `develop`/`main`.
+1. **Discover project conventions** per `references/project-conventions.md` (package manager, test/lint commands, base branch, acceptance layout, E2E base URL, architecture, ubiquitous language sources). Write the session conventions card and keep it for every later step.
+2. Resolve the issue reference from the invocation args (tracker id, `#N`, URL). If ambiguous, ask which source. Load full issue text + comments + any Example Map.
+3. Extract the **user-visible behavior**, acceptance criteria, and constraints. If the issue is thin, investigate cited code (Explore agent for anything more than a couple of files).
+4. Ensure tracking is `in_progress` when the project’s tracker supports it.
+5. Create a work branch from the **discovered** default/base branch (`git pull --ff-only`, then `git checkout -b <type>/<kebab-slug>` with the project’s naming pattern). Confirm you are **not** on a protected branch.
 
-### Step 1 — Gherkin features (happy path + edge cases)
+### Step 1 — Discovery → acceptance generation
 
-1. Write `.feature` files under `tests/features/**` capturing:
-   - the **happy path** scenario(s), and
-   - **edge/error/permission** scenarios (invalid input, missing auth, boundary values, idempotency/retry, empty states).
-2. Run `bun run gherkin:generate` to produce the committed generated artifacts.
-3. If the behavior is genuinely not user-visible, record why (this substitutes for acceptance coverage in the handoff) and skip to Step 3.
+Do **not** jump straight to writing feature files, and do **not** use generic “write some Gherkin” agents. Ground scenarios in **this product’s** users, real journeys, and researched UX patterns.
+
+If the behavior is genuinely **not** user-visible, record why (substitutes for acceptance coverage in the handoff) and skip to Step 3.
+
+Otherwise follow `references/gherkin-generation.md` end-to-end:
+
+1. **Dispatch three discovery sub-agents in a single message** (concurrent). Shared inputs must include the **discovered product brief + audience clues** from Step 0 (not a hard-coded product). Full prompts live in the reference:
+   - **Target Users** — personas who care about this issue for *this* app; JTBD, pain points, success signals, anti-personas / permission gates.
+   - **Workflows** — actual end-to-end journeys (entry → success, preconditions, empty/first-run, roles, plan gates, failure + recovery, cross-surface impacts). Scenario seeds in product language.
+   - **UX Affordance Research** — web research on comparable products for this interaction class *and product category*; affordances to adopt/adapt/reject (with sources), a11y, explicit out-of-scope.
+2. **Reconcile** into an Example Map (Rules / Examples / Questions), extending any map already on the issue. Blocking red questions → ask the user or file a follow-up; do not invent.
+3. **Generate all acceptance files** where this repo expects them (Gherkin `*.feature` and/or the project’s preferred form) — happy path **and** edge/error/permission/empty/recovery justified by discovery. Follow project BDD/conventions docs when present.
+4. Run the project’s acceptance generate/compile command **if it exists**.
+5. Keep the Example Map + discovery notes for Step 2 and the handoff.
+
+Quality bar: see `references/gherkin-generation.md`.
 
 ### Step 2 — Three-lens validation (parallel)
 
-Dispatch **three agents in a single message** (so they run concurrently), each with a distinct lens. Full prompts and the reconciliation rubric are in `references/gherkin-validation.md`:
+After features exist, dispatch **three validation agents in one message** (concurrent). Prompts + rubric: `references/gherkin-validation.md`. Feed issue, features, Example Map, and relevant source paths:
 
-- **Business Analyst** — acceptance completeness vs. the issue; missing scenarios, wrong outcomes, untestable "and/but" clauses.
-- **QA / Edge-Case Hunter** — boundaries, error paths, concurrency, idempotency, data-shape gaps the features miss.
-- **Architect** — technical feasibility of each step against the actual codebase (DDD layers, existing services, whether a step is even reachable).
+- **Business Analyst** — completeness vs issue + map; observable outcomes.
+- **QA / Edge-Case Hunter** — boundaries, errors, concurrency, idempotency.
+- **Architect** — feasibility and correct test layer **in this codebase**.
 
-Reconcile the findings, revise the `.feature` files, re-run `bun run gherkin:generate`. If revisions were substantial, re-run the affected lens once. Then proceed. (Base-branch-only checkpointing: **do not** pause for user approval here — decide and move on.)
+Reconcile, revise features, re-run generate/compile if applicable. Substantial revisions → re-run only the affected lens once. Do **not** pause for user approval here unless a product decision is blocked.
 
-### Step 3 — Red: failing tests (unit + integration + E2E)
+### Step 3 — Red: failing tests
 
-Write tests **first**, matching the validated scenarios. Cover every new branch/error path/validator/permission (keep CRAP risk low):
+Write tests **first**, matching validated scenarios. Prefer the project’s layout (unit / integration / E2E). Cover new branches, error paths, validators, and permissions when complexity warrants (or when project gates require it).
 
-- **Unit** — `bun test <path>`; mock at package boundaries (see cross-platform mocking gotchas in conventions).
-- **Integration** — repository/service tests via the Mongo harness (`RUN_MONGO_TESTS=1 …`).
-- **E2E** — Playwright against `megazord.olhaminha.bio` with the test credentials, for user-visible flows.
-
-Run them and **confirm they fail for the right reason** (assertion failure, not import/compile/setup error). A red test that errors out is not a valid red. This is the mutation/sensitivity gate — prove the test detects the missing behavior.
+Run them with the **discovered** test commands and **confirm failure for the right reason** (assertion, not import/compile/setup). That is the mutation/sensitivity gate.
 
 ### Step 4 — Green: implement the minimum
 
-1. Implement the smallest change that satisfies the tests, respecting DDD layers (Domain → Application → Infrastructure → UI) and existing services/DI tokens.
-2. Loop: run the failing tests until green, then run the **full** relevant suites + `bun run typecheck` + lint. All must pass.
-3. Refactor for clarity while keeping green.
+1. Smallest change that satisfies the tests, matching **this** repo’s architecture and existing modules/services.
+2. Loop until green, then run the full relevant suites + typecheck + lint from the conventions card.
+3. Refactor for clarity while staying green.
 
-### Step 5 — Visual verification
+### Step 5 — Visual verification (if applicable)
 
-Invoke the **`/visual-app-verify`** skill against `megazord.olhaminha.bio` (not localhost) to confirm the change renders and behaves correctly in the running app. Capture what was checked.
+If the project documents a browser base URL and/or a visual-verify skill (e.g. `/visual-app-verify`), run it against that URL — never invent a host. If there is no UI surface or no local preview path, record N/A.
 
 ### Step 6 — Loop on failure
 
-If any gate fails — validation surfaces a real gap, a red test can't be made to fail correctly, green is unreachable, or the visual check reveals a defect — **return to the earliest affected step** and repeat. Use `superpowers:systematic-debugging` for stubborn failures rather than guessing. Bound the loop: after ~3 unproductive cycles on the same gate, stop and surface the blocker to the user with what you tried.
+On any gate failure, return to the earliest affected step. Prefer systematic debugging over guessing. After ~3 unproductive cycles on the same gate, stop and surface the blocker with what you tried.
 
 ### Step 7 — Commit, push, PR
 
-1. Stage **named files** (never `git add -A`). Make logically-grouped commits (e.g. features+generated, tests, implementation) with clear messages. `bd sync` to persist beads state.
-2. Push the branch. **Verify the push landed** with `git ls-remote origin <branch>` (a backgrounded push can exit 0 without pushing).
-3. **Confirm the PR base branch with the user** — default `develop`; ask before targeting anything else. This is the one required checkpoint.
-4. Open the PR with `gh pr create --base <confirmed> --head <branch>`. Body: what/why, linked issue (`Closes #N`), test evidence. No local paths.
+1. Stage **named files** only. Logically grouped commits. Sync tracker if used.
+2. Push; **verify** with `git ls-remote` (or equivalent).
+3. **Confirm PR base branch with the user** (default = discovered default branch).
+4. Open the PR (`gh pr create` or project equivalent). Body: what/why, linked issue, test evidence. No local paths.
 
 ### Step 8 — Handoff summary
 
-Report, per the project's mandatory handoff format:
+- **Red**: command + failure.
+- **Green**: command + pass.
+- **Acceptance coverage**: scenarios (or N/A reason) + one-liner on discovery lenses (personas / workflows / UX affordances adopted).
+- **Risk mitigation**: which new branches/error paths got direct tests.
+- **PR link** + issue closed/linked.
+- **Manual test steps**: exact URL (from conventions), credentials **only if documented for E2E**, and the click-path / API path to observe the behavior.
 
-- **Red**: the command + the failure it produced.
-- **Green**: the command + the passing result.
-- **Acceptance coverage**: the `.feature` scenarios (or the N/A reason from Step 1).
-- **CRAP-risk mitigation**: which new branches/error paths got direct tests.
-- **PR link** and the **beads/GH issue** closed.
-- **Browser test steps for the user**: exact URL (`megazord.olhaminha.bio/...`), login (`test@e2e.example.com` / `test-password-dev-123` if applicable), and the click-path to observe the new behavior.
-
-Then run the session-close protocol (git status → staged → `bd sync` → committed → pushed).
+Session-close: status → named stage → tracker sync → commit → push → verify.
 
 ## References
 
-- `references/project-conventions.md` — exact commands, URLs, credentials, branch/test/CI gotchas. Read at Step 0.
-- `references/gherkin-validation.md` — the three validator agent prompts + reconciliation rubric. Read at Step 2.
+- `references/project-conventions.md` — how to discover stack, commands, URLs, and universal git/TDD rules. Read at Step 0.
+- `references/gherkin-generation.md` — Target Users / Workflows / UX Affordance Research prompts + quality bar. Read at Step 1.
+- `references/gherkin-validation.md` — BA / QA / Architect validation prompts + reconciliation. Read at Step 2.
