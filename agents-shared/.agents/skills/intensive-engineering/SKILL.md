@@ -19,6 +19,7 @@ Orchestrator owns the loop. Sub-agents do parallel work. Track progress with a v
 
 ## Non-negotiables
 
+0. **Isolated worktree from base** before feature work (Phase 0a). If already inside a linked worktree, skip creation and continue.
 1. **Behavior change ⇒ Gherkin first**, then **failing tests first**. Tests-after is not TDD.
 2. **Watch red fail for the right reason** before writing production code.
 3. **Minimum green**, then refactor while staying green.
@@ -31,6 +32,7 @@ Orchestrator owns the loop. Sub-agents do parallel work. Track progress with a v
 
 | Phase | Goal | Gate to next |
 |-------|------|--------------|
+| 0a | Worktree isolation from base | Cwd is isolated worktree (or already was) |
 | 0 | Scope, branch, inventory | Clear user-visible outcomes |
 | 1 | Gherkin BDD | Features cover happy + edges |
 | 2 | Gherkin 3-lens validation | Revised features (if needed) |
@@ -46,12 +48,68 @@ Orchestrator owns the loop. Sub-agents do parallel work. Track progress with a v
 
 ---
 
+## Phase 0a — Worktree from base (before any code)
+
+**Goal:** Protect the user's main checkout. All intensive-engineering implementation happens on a feature branch in a linked git worktree, created from the repo **base branch** (usually `develop`).
+
+### Detect existing isolation — skip if already isolated
+
+Run from the current cwd:
+
+```bash
+GIT_DIR=$(cd "$(git rev-parse --git-dir)" 2>/dev/null && pwd -P)
+GIT_COMMON=$(cd "$(git rev-parse --git-common-dir)" 2>/dev/null && pwd -P)
+SUPER=$(git rev-parse --show-superproject-working-tree 2>/dev/null || true)
+```
+
+- **Already in a linked worktree** when `GIT_DIR != GIT_COMMON` **and** `SUPER` is empty (not a submodule).
+  - **Do not create another worktree.** Announce: `Already in worktree at <path> on <branch> — skipping Phase 0a.`
+  - Continue the usual flow (Phase 0 onward) in this cwd. Same session re-entry / “fix all” / second intensive pass: still skip.
+- **Main checkout** when `GIT_DIR == GIT_COMMON` (or inside a submodule): create isolation below.
+
+Optional harness-native tools (`EnterWorktree`, `/worktree`, etc.): if available and you are on the main checkout, prefer them; same skip rule if already isolated.
+
+### Create worktree from base
+
+Detailed commands: [references/worktree-setup.md](references/worktree-setup.md).
+
+1. **Base branch:** PR/issue base if known; else `develop` if it exists on origin/local; else `main`.
+2. **Fetch base:** `git fetch origin "$BASE" --prune` (or equivalent).
+3. **Feature branch name:** `feat|fix|chore/<kebab-slug>` from the task (never commit on `$BASE` / `main` / `staging` unless the user insists).
+4. **Worktree path (priority):**
+   - Explicit user path if given
+   - Project `.worktrees/<branch>` (preferred) or `worktrees/<branch>`
+   - Ensure the parent dir is **gitignored** before creating (add `.worktrees/` to `.gitignore` if missing — commit that only if the repo already tracks `.gitignore` and the user accepts a tiny hygiene commit, otherwise create the ignore entry without blocking).
+5. **Create from base tip:**
+
+```bash
+git worktree add -b "$FEATURE" "$WT_PATH" "origin/$BASE"   # or "$BASE" if no origin ref
+cd "$WT_PATH"
+```
+
+If the branch already exists locally/remotely, check it out in a new worktree without `-b`, or resume that branch if appropriate.
+
+6. **Stay in the worktree cwd** for Phases 0–11 (all edits, tests, commits). Report path + branch in the Phase 0 todo/handoff.
+
+### Failures / edge cases
+
+| Situation | Action |
+|-----------|--------|
+| `git worktree add` permission/sandbox fail | State the block; ask user or fall back to in-place work on a new branch **only after announcing the loss of isolation** |
+| Dirty main checkout | Do not steal uncommitted work; create worktree from clean base tip without touching dirty files |
+| Already on the target feature branch in main checkout | Still prefer a worktree for isolation unless user declines; if they decline, stay put |
+| Second intensive task in same session already in a worktree | **Skip Phase 0a**; optionally create a **new** branch in the same worktree only if the user wants a separate PR — default is reuse current worktree + branch |
+
+---
+
 ## Phase 0 — Scope & branch
+
+Run **after** Phase 0a (cwd = worktree or confirmed main fallback).
 
 1. Restate the user-visible behavior and out-of-scope items.
 2. Inventory existing patterns (routes, tests, features, UI).
-3. Branch if not already on a feature branch: `feat|fix|chore/<kebab-slug>` (never commit straight to `main`/`develop` unless user insists).
-4. Create todos for Phases 1–10.
+3. Confirm feature branch name (`feat|fix|chore/<kebab-slug>`). Create/switch only if Phase 0a did not already create it. Never commit straight to `main`/`develop` unless the user insists.
+4. Create todos for Phases 1–10 (and note worktree path).
 
 ## Phase 1 — Gherkin / BDD first
 
@@ -156,6 +214,7 @@ See [references/review-lenses.md](references/review-lenses.md) §CRAP.
 
 Report:
 
+- **Worktree:** path + feature branch + base used (or “skipped — already isolated”)
 - **Acceptance:** Gherkin scenarios (or N/A reason)
 - **Red → Green:** commands + outcomes
 - **Review:** P0–P2 count addressed / deferred
@@ -171,8 +230,9 @@ Report:
 
 - Prefer **one message, many agents** for parallel phases (2, 5, 9).
 - Capability: validation/review agents **read-only** when possible.
-- Give each agent: absolute paths, scope boundary, required output shape, peer names for debate phases.
+- Give each agent: absolute paths **inside the worktree**, scope boundary, required output shape, peer names for debate phases.
 - If an agent idles without output, resume/nudge once; then proceed with partial set and note the gap.
+- Keep sub-agents on the same worktree cwd; do not spawn implementers against the main checkout while Phase 0a isolated.
 
 ## When NOT to use this skill
 
@@ -185,4 +245,5 @@ Report:
 - `issue-to-pr` — issue-scoped BDD→PR with project-specific conventions
 - `ux-panel` — Phase 9 panel mechanics
 - `test-feature` / browser skills — Phase 8 visual automation
+- `post-pr-merge` — after merge: back to base, remove worktree/branch
 - Project TDD/superpowers skills — deepen Phase 3–4 if present
