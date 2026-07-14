@@ -1,8 +1,9 @@
 ---
 name: intensive-engineering
 description: >
-  Full intensive engineering loop for any non-trivial feature or bugfix: Gherkin/BDD first,
-  TDD red→green (unit + integration + regression + E2E), parallel sub-agent implementation where safe,
+  Full intensive engineering loop for any non-trivial feature or bugfix: start in a git worktree
+  from the base branch (skip if already in a worktree), then Gherkin/BDD first, TDD red→green
+  (unit + integration + regression + E2E), parallel sub-agent implementation where safe,
   five-lens code review (performance, design patterns, QA, simplicity, UX) with cross-check and P0–P2
   remediation, CRAP analysis + refactor expert, visual server testing with screenshots, /ux-panel on those
   screenshots, then address all panel findings. Use when the user says "intensive engineering",
