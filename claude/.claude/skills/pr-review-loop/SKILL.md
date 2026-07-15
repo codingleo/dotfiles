@@ -1,6 +1,6 @@
 ---
 name: pr-review-loop
-description: Address open PR review feedback end-to-end and verify the PR is mergeable — fetch all human + bot review comments, classify by severity, fix in an isolated worktree, run tests/typecheck/lint, push, verify the push landed, reply inline to every thread, resolve threads via GraphQL, then check CI and loop until reviewers and CI are both happy. Use when the user says "check PR comments", "address PR review feedback", "fix all the review comments on PR #N", "verify PR #N is ready", "is CI passing on PR #N", "loop until reviewers happy", or pastes a github.com PR URL and asks you to fix the feedback. NOT for performing a code review yourself — for that, use `pr-review-toolkit:review-pr` or `code-review:code-review`.
+description: Address open PR review feedback end-to-end and verify the PR is mergeable — fetch all human + bot review comments, classify by severity, fix in an isolated worktree, run tests/typecheck/lint, push, verify the push landed, reply inline to every thread, resolve threads via GraphQL, then check CI and loop until reviewers and CI are both happy. Use when the user says "check PR comments", "address PR review feedback", "fix all the review comments on PR #N", "verify PR #N is ready", "is CI passing on PR #N", "loop until reviewers happy", or pastes a github.com PR URL and asks you to fix the feedback. NOT for performing a code review yourself — for that, use `pr-review-toolkit:review-pr` or `megazord-code-review`.
 ---
 
 # PR Review Loop

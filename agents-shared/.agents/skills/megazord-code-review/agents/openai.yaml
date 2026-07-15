@@ -1,0 +1,4 @@
+interface:
+  display_name: "Megazord Code Review"
+  short_description: "Coordinate eight evidence-first review experts"
+  default_prompt: "Use $megazord-code-review to inspect the current branch and report only verified, actionable findings."
