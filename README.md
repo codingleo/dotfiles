@@ -28,6 +28,7 @@ Each top-level directory is a stow package mirroring `$HOME`:
 | `nvim` | `~/.config/nvim/` | editor config + `lazy-lock.json` |
 | `claude` | `~/.claude/` | settings, CLAUDE.md, agents, custom skills |
 | `codex` | `~/.codex/` | config.toml, AGENTS.md, rules, custom skills |
+| `grok` | `~/.grok/` | custom skills (symlinks to shared skill sources) |
 | `opencode` | `~/.config/opencode/` | configs + custom skills |
 | `pi` | `~/.pi/agent/` | settings, models |
 | `agents-shared` | `~/.agents/` | shared skills pool + lock file |
