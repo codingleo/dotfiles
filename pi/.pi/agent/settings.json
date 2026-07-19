@@ -12,5 +12,8 @@
   "terminal": {
     "showTerminalProgress": true
   },
-  "theme": "dark"
+  "theme": "dark",
+  "subagents": {
+    "defaultModel": "xai/grok-4.5"
+  }
 }
