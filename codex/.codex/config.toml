@@ -1,5 +1,5 @@
-model = "gpt-5.5"
-model_reasoning_effort = "xhigh"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 plan_mode_reasoning_effort = "xhigh"
 personality = "pragmatic"
 notify = [ "/Users/leonardoribeiro/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended" ]
@@ -76,8 +76,8 @@ source_type = "local"
 source = "/Users/leonardoribeiro/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
 
 [marketplaces.claude-plugins-official]
-last_updated = "2026-06-27T20:20:25Z"
-last_revision = "30a213f9b39e3c40b0073bb5b41081da9f2b6634"
+last_updated = "2026-07-19T00:24:38Z"
+last_revision = "e09c3b1e5f6e8edbe2cdaf55b5dc38cf87824389"
 source_type = "git"
 source = "https://github.com/anthropics/claude-plugins-official.git"
 
@@ -118,11 +118,12 @@ enabled = true
 name = "browser-use:browser"
 enabled = false
 
-[tui.model_availability_nux]
-"gpt-5.5" = 4
-
 [tui.keymap.editor]
 insert_newline = "shift-enter"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+"gpt-5.6-sol" = 4
 
 [apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_create_pull_request]
 approval_mode = "approve"

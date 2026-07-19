@@ -46,9 +46,15 @@ Untagged plain prose is most often a suggestion. Read the verb: "must", "needs t
 ### Vercel Agent / similar AI reviewers
 - Confidence varies wildly. Read the linked detector / rule before fixing.
 
+### verstand-agent-reviewer (github-actions panel)
+- Posts an issue comment summarizing findings **and** one inline thread per finding.
+- Tags: `quality` / `simplicity` (+ voice counts like `3/3 models`).
+- Often **duplicates** the same consolidation ask on two lines of one file. Dedupe by intent before fixing.
+- Default severity: quality with multi-voice agreement → suggestion; single-voice simplicity → nit (fix if cheap).
+
 ## Dedupe
 
-The same line can attract multiple reviewers. Before fixing, group by `path` + `line`. One fix → multiple replies, all citing the same commit.
+The same line can attract multiple reviewers. Before fixing, group by `path` + `line` **or** by semantic request (“consolidate switches”, “inline helper”). One fix → multiple replies, all citing the same commit.
 
 ## When the reviewer is wrong
 

@@ -1,6 +1,6 @@
 # Add deno completions to search path
 if [[ ":$FPATH:" != *":$HOME/.zsh/completions:"* ]]; then export FPATH="$HOME/.zsh/completions:$FPATH"; fi
-[[ -x "$HOME/.local/bin/agent" ]] && eval "$("$HOME/.local/bin/agent" shell-integration zsh)"
+
 # =============================================================================
 # Optimized ZSH Configuration - Minimalist Hacker Theme
 # =============================================================================
@@ -273,5 +273,20 @@ export PATH="$HOME/.grok/bin:$PATH"
 fpath=(~/.grok/completions/zsh $fpath)
 autoload -Uz compinit && compinit -C
 # <<< grok installer <<<
+
+# Cursor owns the `agent` command name; Grok is only available as `grok`.
+# Re-assert after Grok path setup so a future Grok update cannot shadow Cursor.
+if [[ -x "$HOME/.local/bin/cursor-agent" ]]; then
+  ln -sfn "$HOME/.local/bin/cursor-agent" "$HOME/.local/bin/agent" 2>/dev/null
+  # Drop Grok's duplicate `agent` shim if present (keeps ~/.grok/bin/grok).
+  [[ -L "$HOME/.grok/bin/agent" ]] && rm -f "$HOME/.grok/bin/agent"
+fi
+# Prefer ~/.local/bin so `agent` resolves to Cursor even if Grok re-adds its shim.
+path=("$HOME/.local/bin" ${path:#$HOME/.local/bin})
+export PATH
+
+# Cursor shell-integration is opt-in: it `exec`s into `agent record` and replaces
+# every interactive shell. Enable only when you want that session capture:
+#   eval "$("$HOME/.local/bin/agent" shell-integration zsh)"
 
 alias cx="claude --dangerously-skip-permissions"

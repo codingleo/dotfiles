@@ -30,7 +30,7 @@ Each top-level directory is a stow package mirroring `$HOME`:
 | `codex` | `~/.codex/` | config.toml, AGENTS.md, rules, custom skills |
 | `grok` | `~/.grok/` | custom skills (symlinks to shared skill sources) |
 | `opencode` | `~/.config/opencode/` | configs + custom skills |
-| `pi` | `~/.pi/agent/` | settings, models |
+| `pi` | `~/.pi/agent/` | settings, models, personal extensions package (`personal/`) |
 | `agents-shared` | `~/.agents/` | shared skills pool + lock file |
 
 ## Day to day

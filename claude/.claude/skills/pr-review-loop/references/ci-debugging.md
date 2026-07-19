@@ -71,8 +71,10 @@ The most common gotcha: tests pass on macOS, fail on Linux CI. Possible causes:
 - File-system case sensitivity (Linux is case-sensitive, macOS usually isn't)
 - Time-zone or locale differences in date parsing
 - Race conditions surfaced by faster CI hardware
+- **Free identifiers `sessionStorage` / `localStorage`**: Linux Bun does **not** bind bare names to `globalThis` values set in `test-setup.ts` preload. Symptom: `ReferenceError: sessionStorage is not defined` only on CI. Fix production code to use `globalThis.sessionStorage` / `globalThis.localStorage` (null-safe), not “skip the test.”
+- **Pre-push / CI context suite blast radius**: touching `tests/features/_generated/**` can re-run many acceptance files; a red test may be **stale copy** elsewhere, not your feature.
 
-The fix is usually to harden the test, not to make CI more lenient.
+The fix is usually to harden the code or the test, not to make CI more lenient.
 
 ## Waiting strategy
 

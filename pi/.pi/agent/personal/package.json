@@ -1,0 +1,11 @@
+{
+  "name": "leo-pi-personal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Personal Pi extensions synced via ~/dotfiles (stow package: pi)",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./extensions/*.ts"]
+  }
+}

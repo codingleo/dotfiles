@@ -53,9 +53,11 @@ Read [`references/triage.md`](references/triage.md) for the full taxonomy. Quick
 - **Nit / P2 / `[nit]`** — fix if cheap; defer with a follow-up issue if not.
 - **Question / P3 / `[question]`** — answer in a reply; only edit code if the answer requires it.
 
-Bots speak in their own dialect (Codex P0–P3 badges, Copilot category prefixes). Treat their findings on the same severity ladder, but discount confidence: bots produce more false positives.
+Bots speak in their own dialect (Codex P0–P3 badges, Copilot category prefixes, **verstand-agent-reviewer** quality/simplicity panels). Treat their findings on the same severity ladder, but discount confidence: bots produce more false positives.
 
-**Dedupe before fixing.** Two reviewers often flag the same line. One fix → multiple replies citing the same commit.
+**Dedupe before fixing.** Two reviewers often flag the same line **and** agent panels often post **duplicate threads** for the same consolidation request (e.g. two comments both saying “merge three switch statements”). Group by `path` + semantic intent. **One fix → multiple replies** citing the same commit.
+
+**Cheap bot-panel batch:** if ≥3 findings are all pure nits/simplifications with no auth/billing/schema risk (dead string types, inline trivial helpers, missing unit for a pure helper, i18n leftover English), implement the batch without waiting for user confirmation — still list them in the final handoff.
 
 ## Phase 3: Plan (only if scope warrants it)
 
@@ -118,12 +120,18 @@ gh pr checks <pr-number>
 
 If everything is green, the PR is ready. If anything is `pending`, wait (use `gh pr checks --watch` or sleep + re-poll — pick wait time based on typical run length, not arbitrary 5-min sleeps; see [`references/ci-debugging.md`](references/ci-debugging.md)).
 
+**Do not declare “review loop done” when threads are resolved but required checks are still red or pending.** Threads empty ≠ mergeable.
+
 If a check **failed**:
 
-1. Identify the failing run: `gh run view <run-id> --log-failed | tail -200`
+1. Identify the failing run: `gh run view <run-id> --log-failed | tail -200` (or `rg` the log for `error:` / `fail)`).
 2. Reproduce locally if possible. Don't speculate about the failure cause from the title alone.
-3. Treat the failure as a new "review comment" — go back to Phase 4, fix, push, then re-poll Phase 7.
-4. The loop terminates when `gh pr checks` reports all required checks passed AND every thread is resolved.
+3. **macOS-pass / CI-fail patterns for this monorepo** (see also `issue-to-pr` conventions):
+   - `ReferenceError: sessionStorage is not defined` / `localStorage is not defined` → free identifier bug; use `globalThis.*` (Linux Bun).
+   - Architectural token fails (`rounded-lg`, `duration-200`) → dashboard `_architectural` suite.
+   - `is not a function` in acceptance steps after rebase → harness constructor arity drift.
+4. Treat the failure as a new "review comment" — go back to Phase 4, fix, push (**ls-remote verify**), then re-poll Phase 7.
+5. The loop terminates when `gh pr checks` reports all **required** checks passed AND every thread is resolved.
 
 For deep debugging of CI failures (matrix builds, flake detection, log spelunking), see [`references/ci-debugging.md`](references/ci-debugging.md).
 
@@ -131,8 +139,8 @@ For deep debugging of CI failures (matrix builds, flake detection, log spelunkin
 
 Both must hold:
 
-- `gh api graphql … reviewThreads … isResolved: false` returns an empty list (or only contains threads the user explicitly chose to defer).
-- `gh pr checks <pr>` reports all required checks pass.
+- Unresolved review threads list is empty (or only threads the user explicitly deferred).
+- `gh pr checks <pr>` reports all **required** checks pass (skipped checks OK). `mergeStateStatus: BLOCKED` while E2E/Unit still run is **not** done.
 
 If either fails after 3 fix-and-push cycles, stop the loop and brief the user. A bug you can't reproduce locally or a reviewer who keeps moving goalposts both deserve a human conversation, not more autonomous attempts.
 

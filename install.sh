@@ -104,6 +104,27 @@ backup_conflicts() {
   done < <(cd "$DOTFILES_DIR/$pkg" && find . \( -type f -o -type l \) | sed 's|^\./||')
 }
 
+ensure_pi_personal_link() {
+  local target="$HOME/.pi/agent/personal"
+  local source_rel="../../dotfiles/pi/.pi/agent/personal"
+  local source_abs="$DOTFILES_DIR/pi/.pi/agent/personal"
+
+  [ -d "$source_abs" ] || return 0
+  mkdir -p "$HOME/.pi/agent"
+
+  if [ -L "$target" ]; then
+    case "$(readlink "$target")" in
+      *dotfiles/pi/.pi/agent/personal) return 0 ;;
+    esac
+  fi
+
+  # Replace tree-folded stow dir or foreign link with one package symlink.
+  rm -rf "$target"
+  ln -sfn "$source_rel" "$target"
+  log "linked Pi personal package -> $source_rel"
+}
+
+
 main() {
   case "$(uname -s)" in
     Darwin) install_macos ;;
@@ -119,6 +140,11 @@ main() {
     stow --no-folding --restow -d "$DOTFILES_DIR" -t "$HOME" "$pkg"
     log "stowed $pkg"
   done
+
+  # Pi resolves ./personal relative to ~/.pi/agent/settings.json. Keep a single
+  # directory symlink so new extension files appear without per-file restow.
+  # (stow --no-folding tree-folds inside the existing ~/.pi/agent directory.)
+  ensure_pi_personal_link
 
   [ -d "$BACKUP_DIR" ] && warn "pre-existing files were backed up to $BACKUP_DIR"
   log "done — open a new shell to pick up zsh config"
