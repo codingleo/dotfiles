@@ -17,10 +17,12 @@ Use this when the user wants **many** concurrent specialists — not a single re
 
 | User intent | Command / tool |
 |---|---|
-| N web researchers | `/fleet research 10 <topic>` or `fleet_dispatch` kind=research |
-| N code-review lenses | `/fleet review 8 <scope>` |
-| N UX personas | `/fleet ux 10 <flow or path>` |
-| Plan only | `/fleet plan research 10 <topic>` or `fleet_plan` |
+| N web researchers | `/fleet research [count] <topic>` (default 5) or `fleet_dispatch` kind=research |
+| N code-review lenses | `/fleet review [count] <scope>` (**default 3**) |
+| N UX personas | `/fleet ux [count] <flow>` (**default 3**) |
+| Plan only | `/fleet plan review 3 <topic>` or `fleet_plan` |
+| Snapshot outputs | `/fleet collect <runId>` or `fleet_collect` |
+| Diagnostics | `/agentic doctor` or `agentic_doctor` |
 | Caps / config | `fleet_status` |
 
 Also works via plain language: “dispatch 10 sub-agents to research X” → **fleet_dispatch**.
@@ -58,6 +60,7 @@ Optional `~/.pi/agent/fleet.json`:
 ```json
 {
   "defaultConcurrency": 12,
+  "defaultVerifyCount": 3,
   "asyncByDefault": true,
   "caps": { "maxTasks": 48, "concurrency": 16, "globalConcurrencyLimit": 48 },
   "models": {
@@ -69,6 +72,8 @@ Optional `~/.pi/agent/fleet.json`:
   }
 }
 ```
+
+Project overlay (merged on top): `<cwd>/.pi/fleet.json`.
 
 Per-call overrides: `fleet_dispatch` `model` / `models[]`.
 

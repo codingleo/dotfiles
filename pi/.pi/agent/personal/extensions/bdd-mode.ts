@@ -822,10 +822,62 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		return { action: "transform" as const, text };
 	});
 
+	const runDoctorCommand = async (ctx: ExtensionContext) => {
+		const report = await runAgenticDoctor({
+			cwd: cwdOf(ctx),
+			rpcPing: async () => {
+				const reply = await callSubagentRpc(pi.events, "ping", {}, { timeoutMs: 3000 });
+				return reply.success;
+			},
+		});
+		const text = formatDoctorReport(report);
+		if (ctx.hasUI) {
+			ctx.ui.notify(
+				report.ok ? `Doctor OK (${report.pass} pass, ${report.warn} warn)` : `Doctor: ${report.fail} fail`,
+				report.ok ? "info" : "warning",
+			);
+		}
+		pi.sendMessage(
+			{ customType: "agentic-doctor", content: text, display: true },
+			{ triggerTurn: false },
+		);
+	};
+
+	// Top-level /agentic doctor (roadmap P0.6)
+	pi.registerCommand("agentic", {
+		description: "Agentic tooling: doctor | ship",
+		getArgumentCompletions: (prefix) =>
+			["doctor", "ship"]
+				.filter((o) => o.startsWith(prefix.trim()))
+				.map((value) => ({ value, label: value })),
+		handler: async (args, ctx) => {
+			const cmd = (args.trim().split(/\s+/)[0] || "doctor").toLowerCase();
+			if (cmd === "doctor" || cmd === "") {
+				await runDoctorCommand(ctx);
+				return;
+			}
+			if (cmd === "ship") {
+				pi.sendMessage(
+					{
+						customType: "agentic-ship",
+						content:
+							"Use skill **ship** (or prompt `/ship <focus>`). " +
+							"Pipeline: discovery → formulation → red → green → verify → fleet review (N=3) → collect → synthesis → handoff.\n" +
+							"Run: load skill ship, then follow it for the current focus.",
+						display: true,
+					},
+					{ triggerTurn: true },
+				);
+				return;
+			}
+			ctx.ui.notify("Usage: /agentic doctor | /agentic ship", "warning");
+		},
+	});
+
 	// /bdd command
 	pi.registerCommand("bdd", {
 		description:
-			"BDD/TDD mode: status|on|off|discovery|formulation|red|green|refactor|verify|handoff|init|bypass",
+			"BDD/TDD mode: status|on|off|discovery|formulation|red|green|refactor|verify|handoff|init|bypass|doctor",
 		getArgumentCompletions: (prefix) => {
 			const opts = [
 				"status",
@@ -893,17 +945,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 			}
 
 			if (cmd === "doctor") {
-				const report = await runAgenticDoctor({
-					cwd: cwdOf(ctx),
-					rpcPing: async () => {
-						const reply = await callSubagentRpc(pi.events, "ping", {}, { timeoutMs: 3000 });
-						return reply.success;
-					},
-				});
-				pi.sendMessage(
-					{ customType: "agentic-doctor", content: formatDoctorReport(report), display: true },
-					{ triggerTurn: false },
-				);
+				await runDoctorCommand(ctx);
 				return;
 			}
 

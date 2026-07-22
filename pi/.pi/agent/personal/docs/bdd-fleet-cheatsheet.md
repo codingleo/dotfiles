@@ -184,10 +184,12 @@ Copies `status.json` + `output-*.log` / artifact markdown into
 | `/bdd fleet-bypass <reason>` | Fleet launch gates off until phase change |
 | `/bdd handoff` | Evidence block + missing fields |
 | `/bdd handoff pr` | Same + GitHub PR body |
-| `/bdd doctor` | Agentic doctor (BDD/fleet/auth/RPC) |
+| `/bdd doctor` · `/agentic doctor` | Diagnostics (BDD/fleet/auth/typebox/RPC) |
+| `/agentic ship` · skill `ship` · `/ship` | Full discovery→handoff recipe |
 | `bdd_assert_mutation` | Command-backed fail→pass mutation |
 | `/fleet collect <runId>` | Snapshot member outputs |
-| `/ship` | Full recipe skill (see skills/ship) |
+| `/fleet review [topic]` | Review fleet (**default N=3**) |
+| Project `.pi/fleet.json` | Overlay on `~/.pi/agent/fleet.json` |
 
 ### Tools
 

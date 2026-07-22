@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { ensureSubagentCaps, loadFleetUserConfigDetailed, resolveCaps } from "./config.ts";
+import {
+	ensureSubagentCaps,
+	loadFleetUserConfigDetailed,
+	mergeFleetConfigs,
+	resolveCaps,
+} from "./config.ts";
 
 describe("ensureSubagentCaps", () => {
 	test("warn-only by default does not write", () => {
@@ -138,6 +143,46 @@ describe("loadFleetUserConfigDetailed", () => {
 		});
 		expect(r.config).toEqual({});
 		expect(r.parseError).toBeTruthy();
+	});
+
+	test("merges project .pi/fleet.json overlay", () => {
+		const files: Record<string, string> = {
+			"/user/fleet.json": JSON.stringify({
+				defaultVerifyCount: 5,
+				models: { default: "xai/a", review: "xai/a" },
+				caps: { maxTasks: 48, concurrency: 16 },
+			}),
+			"/proj/.pi/fleet.json": JSON.stringify({
+				defaultVerifyCount: 3,
+				models: { review: "xai/b" },
+				caps: { concurrency: 8 },
+			}),
+		};
+		const r = loadFleetUserConfigDetailed("/user/fleet.json", {
+			cwd: "/proj",
+			exists: (p) => p in files,
+			read: (p) => files[p]!,
+		});
+		expect(r.config.defaultVerifyCount).toBe(3);
+		expect(r.config.models?.default).toBe("xai/a");
+		expect(r.config.models?.review).toBe("xai/b");
+		expect(r.config.caps?.maxTasks).toBe(48);
+		expect(r.config.caps?.concurrency).toBe(8);
+		expect(r.path).toMatch(/fleet\.json/);
+	});
+});
+
+describe("mergeFleetConfigs", () => {
+	test("overlay wins on scalars and nested keys", () => {
+		const m = mergeFleetConfigs(
+			{ defaultVerifyCount: 5, models: { pool: ["a"] }, caps: { maxTasks: 10 } },
+			{ defaultVerifyCount: 3, models: { review: "b" }, caps: { concurrency: 2 } },
+		);
+		expect(m.defaultVerifyCount).toBe(3);
+		expect(m.models?.pool).toEqual(["a"]);
+		expect(m.models?.review).toBe("b");
+		expect(m.caps?.maxTasks).toBe(10);
+		expect(m.caps?.concurrency).toBe(2);
 	});
 });
 

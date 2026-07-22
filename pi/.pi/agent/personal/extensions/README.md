@@ -39,19 +39,25 @@ Dispatch **N** specialists with distinct personas + optional model rotation on t
 
 | Surface | Name |
 |---------|------|
-| Command | `/fleet research\|review\|ux <count> <topic>` , `/fleet plan …`, `/fleet status` |
-| Tools | `fleet_plan`, `fleet_dispatch`, `fleet_status` |
-| Skill | `agentic-fleet` |
-| Prompts | `/fleet-research`, `/fleet-review`, `/fleet-ux` |
+| Command | `/fleet research\|review\|ux [count] <topic>`, `/fleet plan …`, `/fleet collect <runId>`, `/fleet status` |
+| Tools | `fleet_plan`, `fleet_dispatch`, `fleet_status`, `fleet_collect` |
+| Skill | `agentic-fleet`, `ship` |
+| Prompts | `/fleet-research`, `/fleet-review`, `/fleet-ux`, `/ship` |
 | Agents | `fleet-researcher`, `fleet-reviewer`, `fleet-ux` |
-| Config | `~/.pi/agent/fleet.json` (models/caps); raises `extensions/subagent/config.json` parallel limits |
+| Config | `~/.pi/agent/fleet.json` + project `.pi/fleet.json` overlay; caps via `extensions/subagent/config.json` |
+| Doctor | `/agentic doctor` / `/bdd doctor` / tool `agentic_doctor` |
+
+Defaults: **review/ux N=3**, research N=5 (override with count). Cost warning when N>5.
 
 Examples:
 
 ```text
-/fleet research 10 state of multi-agent coding harnesses 2026
-/fleet review 10 git diff develop...HEAD
-/fleet ux 8 checkout flow in app/checkout
+/fleet research state of multi-agent coding harnesses 2026
+/fleet review git diff develop...HEAD
+/fleet ux checkout flow in app/checkout
+/fleet collect 083f47de-c45e-48f4-a254-7d2cfab8c459
+/agentic doctor
+/agentic ship
 ```
 
 Live inspector: `/subagents-fleet` or **Ctrl+Alt+F**.
@@ -71,11 +77,13 @@ Enforces **Example Map → formulation → red → green → refactor → verify
 
 | Surface | Name |
 |---------|------|
-| Command | `/bdd status\|on\|off\|discovery\|formulation\|red\|green\|refactor\|verify\|handoff\|init\|bypass` |
-| Tools | `bdd_status`, `bdd_set_phase`, `bdd_assert_red`, `bdd_assert_green`, `bdd_record_evidence`, `bdd_handoff` |
-| Skill | `bdd-tdd` (`/skill:bdd-tdd`) |
-| Prompts | `/example-map`, `/formulate`, `/tdd`, `/green`, `/handoff` |
+| Command | `/bdd status\|on\|off\|discovery\|formulation\|red\|green\|refactor\|verify\|handoff\|init\|bypass\|doctor` |
+| Tools | `bdd_status`, `bdd_set_phase`, `bdd_assert_red`, `bdd_assert_green`, `bdd_assert_mutation`, `bdd_record_evidence`, `bdd_handoff`, `agentic_doctor` |
+| Skill | `bdd-tdd`, `ship` |
+| Prompts | `/example-map`, `/formulate`, `/tdd`, `/green`, `/handoff`, `/ship` |
 | Auto | Phrases like “TDD”, “Example Map”, “Gherkin”, “red-green-refactor” append a workflow reminder |
+
+Handoff: `/bdd handoff` or `/bdd handoff pr` (PR body). Mutation: `bdd_assert_mutation` (parent breaks/restores; tool only runs commands).
 
 **Per-project config** (first hit wins):
 

@@ -8,7 +8,7 @@ Dispatch a **research fleet** for:
 $@
 
 1. Load skill `agentic-fleet` if needed.
-2. Parse count (default 8 if missing) and topic from the args.
+2. Parse count (default **5** if missing) and topic from the args. Prefer small fleets unless the user asks for more.
 3. Call `fleet_dispatch` with kind=`research`, that count, and topic.
 4. Optional: pass models from `~/.pi/agent/fleet.json` or rotate strong/fast models.
 5. Tell me how to watch progress (`/subagents-fleet`).
