@@ -16,6 +16,7 @@
  */
 import { Type } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { describeAvailability, runWebSearch } from "../lib/xai-web-search/client.ts";
 import { formatSearchReport } from "../lib/xai-web-search/format.ts";
 import {
@@ -25,6 +26,12 @@ import {
 } from "../lib/xai-web-search/intent.ts";
 
 const TOOL_NAME = "xai_web_search";
+
+function truncate(text: string, max: number): string {
+	const cleaned = text.replace(/\s+/g, " ").trim();
+	if (cleaned.length <= max) return cleaned;
+	return `${cleaned.slice(0, Math.max(0, max - 1))}…`;
+}
 
 const xaiWebSearchTool = defineTool({
 	name: TOOL_NAME,
@@ -58,6 +65,37 @@ const xaiWebSearchTool = defineTool({
 			}),
 		),
 	}),
+
+	renderCall(args, theme) {
+		const query = typeof args?.query === "string" ? args.query : "";
+		return new Text(
+			`${theme.fg("accent", "🌐")} ${theme.bold("Web search")} ${theme.fg("dim", truncate(query || "…", 72))}`,
+			0,
+			0,
+		);
+	},
+
+	renderResult(result, options, theme) {
+		const details = (result as { details?: Record<string, unknown> }).details ?? {};
+		const ok = details.ok !== false;
+		const sources = Array.isArray(details.sources) ? details.sources.length : 0;
+		const calls = typeof details.webSearchCalls === "number" ? details.webSearchCalls : 0;
+		const backend = typeof details.backend === "string" ? details.backend : "";
+		const glyph = ok ? theme.fg("success", "✓") : theme.fg("error", "✗");
+		const meta = [backend, calls ? `${calls} calls` : "", sources ? `${sources} sources` : ""]
+			.filter(Boolean)
+			.join(" · ");
+		const line = `${glyph} ${theme.fg("dim", meta || (ok ? "done" : "failed"))}`;
+		if (options.expanded) {
+			const text =
+				Array.isArray(result.content) && result.content[0] && typeof (result.content[0] as { text?: string }).text === "string"
+					? (result.content[0] as { text: string }).text
+					: "";
+			const preview = truncate(text.replace(/^## Web search result[\s\S]*?\n\n/, ""), 160);
+			return new Text(`${line}\n  ${theme.fg("dim", preview)}`, 0, 0);
+		}
+		return new Text(line, 0, 0);
+	},
 
 	async execute(_toolCallId, params, signal) {
 		const result = await runWebSearch(

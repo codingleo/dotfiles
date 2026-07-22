@@ -1,0 +1,9 @@
+{
+	"asyncWidget": true,
+	"toolDescriptionMode": "compact",
+	"parallel": {
+		"concurrency": 16,
+		"maxTasks": 48
+	},
+	"globalConcurrencyLimit": 48
+}

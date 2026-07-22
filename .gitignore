@@ -24,3 +24,7 @@ __pycache__/
 
 # SDD scratch
 .superpowers/
+
+# Pi fleet artifacts
+.pi/fleet-runs/
+.pi-subagents/

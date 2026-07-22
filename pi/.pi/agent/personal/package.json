@@ -1,11 +1,19 @@
 {
   "name": "leo-pi-personal",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Personal Pi extensions synced via ~/dotfiles (stow package: pi)",
+  "description": "Personal Pi extensions, skills, prompts, and fleet agents synced via ~/dotfiles",
   "keywords": ["pi-package"],
   "pi": {
-    "extensions": ["./extensions/*.ts"]
+    "extensions": ["./extensions/*.ts"],
+    "skills": ["./skills"],
+    "prompts": ["./prompts"],
+    "subagents": {
+      "agents": ["./agents"]
+    }
+  },
+  "scripts": {
+    "test": "bun test lib"
   }
 }
