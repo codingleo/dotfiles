@@ -24,7 +24,10 @@ import {
 	assertFleetAllowed,
 	normalizeFleetKind,
 } from "../lib/bdd/fleet-gate.ts";
-import { readBddStateFromBranch } from "../lib/bdd/session-state.ts";
+import {
+	BDD_STATE_CUSTOM_TYPE,
+	readBddStateFromBranch,
+} from "../lib/bdd/session-state.ts";
 import { loadModelResolveContext } from "../lib/fleet/model-resolve.ts";
 import {
 	buildFleetPlan,
@@ -34,6 +37,13 @@ import {
 } from "../lib/fleet/plan.ts";
 import type { FleetKind } from "../lib/fleet/personas.ts";
 import { callSubagentRpc } from "../lib/fleet/rpc.ts";
+import {
+	buildFleetRunRecord,
+	extractRunIdentity,
+	FLEET_RUN_RECORD_TYPE,
+	mergeFleetRuns,
+	writePlanManifest,
+} from "../lib/fleet/run-ledger.ts";
 
 const FLEET_GUIDELINES = [
 	"When the user asks to dispatch many sub-agents (research swarm, multi-perspective code review, UX persona panel), use fleet_plan / fleet_dispatch or /fleet — do not manually invent 10 identical tasks.",
@@ -213,13 +223,64 @@ async function dispatchPlan(
 			? data.text.trim()
 			: "Async fleet launched. Use /subagents-fleet or subagent({ action:\"status\", view:\"fleet\" }).";
 
+	// P0.2: extract run identity, write plan.json, append session ledger
+	const identity = extractRunIdentity(data) ?? extractRunIdentity(reply);
+	let ledgerNote = "";
+	let record: ReturnType<typeof buildFleetRunRecord> | undefined;
+	if (identity) {
+		record = buildFleetRunRecord({
+			identity,
+			kind: plan.kind,
+			expectedCount: plan.count,
+		});
+		const cwd = ctx?.cwd ?? process.cwd();
+		try {
+			const { dir, planPath } = writePlanManifest(cwd, identity.runId, plan, identity);
+			ledgerNote =
+				`\n\n### Run ledger\n` +
+				`- **runId:** \`${identity.runId}\`\n` +
+				(identity.asyncDir ? `- **asyncDir:** \`${identity.asyncDir}\`\n` : "") +
+				`- **plan:** \`${planPath}\`\n` +
+				`- **run dir:** \`${dir}\`\n` +
+				(plan.kind === "review" || plan.kind === "ux" || plan.kind === "custom"
+					? `- **handoff:** write \`${dir}/synthesis.md\` before bdd_handoff (required for review/ux fleets)\n`
+					: "");
+		} catch (err) {
+			ledgerNote = `\n\n### Run ledger\n- runId \`${identity.runId}\` (plan.json write failed: ${err instanceof Error ? err.message : String(err)})\n`;
+		}
+		try {
+			pi.appendEntry(FLEET_RUN_RECORD_TYPE, record);
+			// Merge into bdd-mode-state when present so in-session handoff sees fleetRuns
+			if (ctx?.sessionManager) {
+				const branch = ctx.sessionManager.getBranch() as Array<{
+					type?: string;
+					customType?: string;
+					data?: unknown;
+				}>;
+				const bdd = readBddStateFromBranch(branch);
+				if (bdd) {
+					const fleetRuns = mergeFleetRuns(bdd.evidence?.fleetRuns, record);
+					pi.appendEntry(BDD_STATE_CUSTOM_TYPE, {
+						...bdd,
+						evidence: { ...bdd.evidence, fleetRuns },
+					});
+				}
+			}
+		} catch {
+			// session append is best-effort
+		}
+	} else {
+		ledgerNote =
+			"\n\n### Run ledger\n- Warning: could not extract runId from RPC response; handoff synthesis gate may not bind this run.\n";
+	}
+
 	return {
 		ok: true,
 		text: [
 			`## Fleet dispatched — ${plan.kind} × ${plan.count}`,
 			``,
 			runHint,
-			``,
+			ledgerNote,
 			formatPlanSummary(plan),
 			``,
 			`### Parent job (required when fleet finishes)`,
@@ -229,9 +290,9 @@ async function dispatchPlan(
 			`3. **Blockers** worth fixing now`,
 			`4. **Actions** (ordered)`,
 			`5. **Residual risks**`,
-			`Watch: /subagents-fleet or Ctrl+Alt+F. Outputs under .pi/fleet-runs/.`,
+			`Watch: /subagents-fleet or Ctrl+Alt+F. Ledger: .pi/fleet-runs/<runId>/`,
 		].join("\n"),
-		details: { ok: true, rpc: data, plan },
+		details: { ok: true, rpc: data, plan, run: record, identity },
 	};
 }
 

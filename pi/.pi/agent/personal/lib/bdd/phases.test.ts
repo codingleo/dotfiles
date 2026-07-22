@@ -102,6 +102,38 @@ describe("handoff", () => {
 		expect(handoffComplete(e).ok).toBe(false);
 		expect(handoffComplete(e).missing.some((m) => /N\/A reason/i.test(m))).toBe(true);
 	});
+
+	test("review fleet without synthesis fails handoff", () => {
+		const e = {
+			...redGreen,
+			fleetRuns: [
+				{
+					runId: "run-1",
+					kind: "review",
+					expectedCount: 3,
+					at: "t",
+				},
+			],
+		};
+		expect(handoffComplete(e).ok).toBe(false);
+		expect(handoffComplete(e).missing.some((m) => /synthesis/.test(m))).toBe(true);
+	});
+
+	test("review fleet with synthesisPath ok", () => {
+		const e = {
+			...redGreen,
+			fleetRuns: [
+				{
+					runId: "run-1",
+					kind: "review",
+					expectedCount: 3,
+					at: "t",
+					synthesisPath: ".pi/fleet-runs/run-1/synthesis.md",
+				},
+			],
+		};
+		expect(handoffComplete(e).ok).toBe(true);
+	});
 });
 
 describe("evidence lifecycle helpers", () => {

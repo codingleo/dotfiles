@@ -1,6 +1,6 @@
 # Agentic BDD + Fleet integration roadmap
 
-Status: **P0.0 + P0.1 shipped** (GO 2026-07-22). Operator guide: [`bdd-fleet-cheatsheet.md`](./bdd-fleet-cheatsheet.md). Next: P0.2 collect/synthesis when requested.  
+Status: **P0.0–P0.2 shipped** (GO 2026-07-22). Operator guide: [`bdd-fleet-cheatsheet.md`](./bdd-fleet-cheatsheet.md). Next: P0.3 full collect/snapshot when requested.  
 Scope: `~/dotfiles/pi/.pi/agent/personal`  
 Principle: **BDD defines done and blocks lies; fleets multiply perspective at discovery/verify; one parent writer owns the tree and the handoff ledger.**
 

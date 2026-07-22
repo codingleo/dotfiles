@@ -33,6 +33,11 @@ import {
 import { evaluatePathGate } from "../lib/bdd/paths.ts";
 import { BDD_STATE_CUSTOM_TYPE } from "../lib/bdd/session-state.ts";
 import {
+	collectFleetRunsFromBranch,
+	mergeEvidenceFleetRuns,
+	mergeFleetRuns,
+} from "../lib/fleet/run-ledger.ts";
+import {
 	canTransition,
 	clearCycleEvidence,
 	formatHandoff,
@@ -94,6 +99,20 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		pi.appendEntry(CUSTOM_TYPE, { ...state });
 	}
 
+	function syncFleetRunsFromBranch(ctx: ExtensionContext): void {
+		try {
+			const branch = ctx.sessionManager.getBranch() as Array<{
+				type?: string;
+				customType?: string;
+				data?: unknown;
+			}>;
+			const fromLedger = collectFleetRunsFromBranch(branch);
+			state.evidence.fleetRuns = mergeEvidenceFleetRuns(state.evidence.fleetRuns, fromLedger);
+		} catch {
+			// ignore
+		}
+	}
+
 	function restoreFromBranch(ctx: ExtensionContext): void {
 		reloadConfig(cwdOf(ctx));
 		const branch = ctx.sessionManager.getBranch();
@@ -113,6 +132,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 			state.enabled = true;
 			state.phase = "discovery";
 		}
+		syncFleetRunsFromBranch(ctx);
 		updateStatus(ctx);
 	}
 
@@ -431,8 +451,19 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 			mutationProven: Type.Optional(Type.Boolean()),
 			mutationNote: Type.Optional(Type.String()),
 			crap: Type.Optional(Type.String({ description: "CRAP-risk mitigation notes" })),
+			fleetRunId: Type.Optional(
+				Type.String({ description: "Fleet runId to attach synthesis path (from dispatch ledger)" }),
+			),
+			fleetSynthesisPath: Type.Optional(
+				Type.String({
+					description:
+						"Path to synthesis.md for that run (required before handoff after review/ux fleets)",
+				}),
+			),
 		}),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
+			const extCtx = ctx as ExtensionContext;
+			syncFleetRunsFromBranch(extCtx);
 			if (params.focus) state.evidence.focus = String(params.focus);
 			if (params.exampleMapRef) {
 				state.evidence.exampleMap = {
@@ -473,8 +504,22 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 				};
 			}
 			if (params.crap) state.evidence.crap = String(params.crap);
+			if (params.fleetRunId && params.fleetSynthesisPath) {
+				const runId = String(params.fleetRunId);
+				const synthesisPath = String(params.fleetSynthesisPath);
+				const base = (state.evidence.fleetRuns ?? []).find((r) => r.runId === runId) ?? {
+					runId,
+					kind: "review",
+					expectedCount: 0,
+					at: nowIso(),
+				};
+				state.evidence.fleetRuns = mergeFleetRuns(state.evidence.fleetRuns, {
+					...base,
+					synthesisPath,
+				});
+			}
 			persist();
-			updateStatus(ctx as ExtensionContext);
+			updateStatus(extCtx);
 			return {
 				content: [{ type: "text", text: formatHandoff(state.evidence, state.phase) }],
 				details: { ok: true, evidence: state.evidence },
@@ -486,15 +531,23 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		name: "bdd_handoff",
 		label: "BDD Handoff",
 		description:
-			"Produce the required BDD/TDD handoff evidence block (red/green/acceptance/mutation/CRAP). " +
-			"Reports missing fields.",
+			"Produce the required BDD/TDD handoff evidence block (red/green/acceptance/mutation/CRAP/fleet). " +
+			"Reports missing fields. Review fleets require synthesisPath per runId.",
 		parameters: Type.Object({}),
-		async execute() {
+		async execute(_id, _params, _signal, _onUpdate, ctx) {
+			syncFleetRunsFromBranch(ctx as ExtensionContext);
 			const { ok, missing } = handoffComplete(state.evidence);
 			const body = formatHandoff(state.evidence, state.phase);
+			const fleetLines =
+				(state.evidence.fleetRuns ?? [])
+					.map(
+						(r) =>
+							`- fleet ${r.kind} \`${r.runId}\` synthesis=${r.synthesisPath ?? "(missing)"}`,
+					)
+					.join("\n") || "- (no fleet runs)";
 			const text = ok
-				? body
-				: `${body}\n**Missing:** ${missing.join(", ")}\n`;
+				? `${body}\n### Fleet runs\n${fleetLines}\n`
+				: `${body}\n### Fleet runs\n${fleetLines}\n\n**Missing:** ${missing.join(", ")}\n`;
 			return {
 				content: [{ type: "text", text }],
 				details: { ok, missing, evidence: state.evidence },
@@ -708,6 +761,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 			}
 
 			if (cmd === "handoff") {
+				syncFleetRunsFromBranch(ctx);
 				const { ok, missing } = handoffComplete(state.evidence);
 				const body = formatHandoff(state.evidence, state.phase);
 				const text = ok ? body : `${body}\nMissing: ${missing.join(", ")}`;

@@ -167,6 +167,18 @@ export function formatHandoff(evidence: BddEvidence, phase: BddPhase): string {
 	if (evidence.bypass) {
 		lines.push(`- **Bypass used:** ${evidence.bypass.reason} @ ${evidence.bypass.at}`);
 	}
+	if (evidence.fleetBypass) {
+		lines.push(`- **Fleet bypass:** ${evidence.fleetBypass.reason} @ ${evidence.fleetBypass.at}`);
+	}
+	if (evidence.fleetRuns?.length) {
+		for (const r of evidence.fleetRuns) {
+			lines.push(
+				`- **Fleet ${r.kind}:** \`${r.runId}\` synthesis=${r.synthesisPath ?? "_(missing)_"}`,
+			);
+		}
+	} else {
+		lines.push("- **Fleet runs:** _(none)_");
+	}
 	lines.push("");
 	return lines.join("\n");
 }
@@ -182,6 +194,14 @@ export function handoffComplete(evidence: BddEvidence): { ok: boolean; missing: 
 		!evidence.acceptance.reason?.trim()
 	) {
 		missing.push("acceptance N/A reason");
+	}
+	// R3: review/ux/custom fleets require synthesis bound to runId
+	for (const run of evidence.fleetRuns ?? []) {
+		const needs =
+			run.kind === "review" || run.kind === "ux" || run.kind === "custom";
+		if (needs && !run.synthesisPath?.trim()) {
+			missing.push(`fleet synthesis for run ${run.runId} (kind=${run.kind})`);
+		}
 	}
 	// Soft requirements — listed but do not fail ok for tiny tech fixes
 	const soft: string[] = [];

@@ -136,6 +136,27 @@ Then you may run review fleets.
 
 Native models preferred over OpenRouter when authenticated (`anthropic/…`, `openai-codex/…`, `xai/…`).
 
+### Run ledger (P0.2)
+
+On successful dispatch the extension:
+
+1. Extracts **runId** / **asyncDir** from pi-subagents RPC  
+2. Writes **`.pi/fleet-runs/<runId>/plan.json`**  
+3. Appends a session **fleet-run-record** and merges into BDD `evidence.fleetRuns`
+
+After a **review/ux** fleet finishes:
+
+1. Write synthesis to e.g. `.pi/fleet-runs/<runId>/synthesis.md`  
+2. Record it:
+
+```text
+bdd_record_evidence
+  fleetRunId: <runId>
+  fleetSynthesisPath: .pi/fleet-runs/<runId>/synthesis.md
+```
+
+Without `synthesisPath`, **`bdd_handoff` fails** for that review/ux run (R3).
+
 ---
 
 ## Commands quick list
@@ -223,4 +244,4 @@ User fleet models/caps: `~/.pi/agent/fleet.json`
 
 ---
 
-*Last updated with P0.0–P0.1 phase-gated fleets + strict green covers red.*
+*Last updated with P0.2 run ledger (runId, plan.json, fleetRuns, synthesis gate on handoff).*
