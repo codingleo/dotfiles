@@ -191,11 +191,13 @@ export function handoffComplete(evidence: BddEvidence): { ok: boolean; missing: 
 	return { ok: missing.length === 0, missing: [...missing, ...soft.map((s) => `(soft) ${s}`)] };
 }
 
-/** Clear run evidence when starting a new focus/cycle (keep bypass log). */
+/** Clear run evidence when starting a new focus/cycle (keep bypass logs). */
 export function clearCycleEvidence(evidence: BddEvidence): BddEvidence {
 	return {
 		focus: evidence.focus,
 		bypass: evidence.bypass,
+		fleetBypass: evidence.fleetBypass,
+		// drop fleetRuns so a new cycle cannot inherit prior synthesis obligations
 	};
 }
 

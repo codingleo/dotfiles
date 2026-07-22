@@ -25,7 +25,13 @@ import {
 } from "../lib/bdd/guidelines.ts";
 import { maybeTransformForBdd } from "../lib/bdd/intent.ts";
 import { isLikelyMutatingBash } from "../lib/bdd/bash-gate.ts";
+import {
+	assertFleetAllowed,
+	assertSubagentLaunchAllowed,
+	normalizeFleetKind,
+} from "../lib/bdd/fleet-gate.ts";
 import { evaluatePathGate } from "../lib/bdd/paths.ts";
+import { BDD_STATE_CUSTOM_TYPE } from "../lib/bdd/session-state.ts";
 import {
 	canTransition,
 	clearCycleEvidence,
@@ -44,7 +50,7 @@ import {
 } from "../lib/bdd/run-command.ts";
 import type { BddConfig, BddEvidence, BddPhase, BddState } from "../lib/bdd/types.ts";
 
-const CUSTOM_TYPE = "bdd-mode-state";
+const CUSTOM_TYPE = BDD_STATE_CUSTOM_TYPE;
 const CONTEXT_TYPE = "bdd-mode-context";
 
 function nowIso(): string {
@@ -152,6 +158,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		if (!enabled) {
 			state.phase = "off";
 			state.bypassUntilPhaseChange = false;
+			state.fleetBypassUntilPhaseChange = false;
 		} else {
 			state.phase = phase ?? (state.phase === "off" ? "discovery" : state.phase);
 		}
@@ -191,6 +198,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		}
 		if (prev !== phase) {
 			state.bypassUntilPhaseChange = false;
+			state.fleetBypassUntilPhaseChange = false;
 		}
 		persist();
 		updateStatus(ctx);
@@ -357,12 +365,28 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 			}
 			const redCmd = state.evidence.red?.command ?? "";
 			const covers = greenCoversRed(redCmd, command);
+			const strict = config.strictGreenCoversRed !== false;
+			if (strict && !covers) {
+				return {
+					content: [
+						{
+							type: "text",
+							text:
+								`Green rejected: command does not cover red under strictGreenCoversRed.\n` +
+								`Red:  \`${redCmd}\`\n` +
+								`Green: \`${command}\`\n` +
+								`Use the same failing command, a broader suite of the same runner, or set strictGreenCoversRed:false in .pi/bdd.json.`,
+						},
+					],
+					details: { ok: false, coversRed: false, command },
+				};
+			}
 			const staleNote = greenIsStale(state.evidence)
 				? "\nWarning: prior green was older than red — replaced."
 				: "";
 			const coverNote = covers
 				? ""
-				: `\nWarning: green command differs from red (\`${redCmd}\`). Prefer re-running the same failing command or a broader suite.`;
+				: `\nWarning: green command differs from red (\`${redCmd}\`).`;
 			state.evidence.green = {
 				command,
 				exitCode: result.exitCode,
@@ -506,9 +530,43 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		persist();
 	});
 
-	// Path gates on edit/write + mutating bash
+	// Path gates + fleet/subagent phase gates
 	pi.on("tool_call", async (event, ctx) => {
-		if (!state.enabled || state.phase === "off" || state.bypassUntilPhaseChange) return;
+		if (!state.enabled || state.phase === "off") return;
+
+		// --- Fleet launch gates (independent of path bypass) ---
+		if (event.toolName === "fleet_dispatch") {
+			const kind = normalizeFleetKind((event.input as { kind?: string }).kind);
+			const gate = assertFleetAllowed({
+				phase: state.phase,
+				enabled: state.enabled,
+				kind,
+				fleetBypass: state.fleetBypassUntilPhaseChange,
+				planningOnly: false,
+			});
+			if (!gate.allowed) {
+				if (ctx.hasUI) ctx.ui.notify(gate.reason ?? "Fleet blocked", "warning");
+				return { block: true, reason: gate.reason ?? "Fleet blocked by BDD phase" };
+			}
+			return;
+		}
+
+		if (event.toolName === "subagent") {
+			const gate = assertSubagentLaunchAllowed({
+				phase: state.phase,
+				enabled: state.enabled,
+				fleetBypass: state.fleetBypassUntilPhaseChange,
+				params: event.input,
+			});
+			if (!gate.allowed) {
+				if (ctx.hasUI) ctx.ui.notify(gate.reason ?? "Subagent fanout blocked", "warning");
+				return { block: true, reason: gate.reason ?? "Subagent fanout blocked by BDD phase" };
+			}
+			return;
+		}
+
+		// Path/bash gates honor path bypass only
+		if (state.bypassUntilPhaseChange) return;
 
 		if (event.toolName === "bash") {
 			const command = String((event.input as { command?: string }).command ?? "");
@@ -598,6 +656,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 				"handoff",
 				"init",
 				"bypass",
+				"fleet-bypass",
 				"next",
 			];
 			return opts
@@ -689,7 +748,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 
 			if (cmd === "bypass") {
 				if (!tail) {
-					ctx.ui.notify("Usage: /bdd bypass <reason>", "warning");
+					ctx.ui.notify("Usage: /bdd bypass <reason>  (path/bash only; fleets: /bdd fleet-bypass)", "warning");
 					return;
 				}
 				state.enabled = true;
@@ -698,7 +757,22 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 				state.evidence.bypass = { reason: tail, at: nowIso() };
 				persist();
 				updateStatus(ctx);
-				ctx.ui.notify(`BDD path gates bypassed: ${tail}`, "warning");
+				ctx.ui.notify(`BDD path/bash gates bypassed: ${tail}`, "warning");
+				return;
+			}
+
+			if (cmd === "fleet-bypass") {
+				if (!tail) {
+					ctx.ui.notify("Usage: /bdd fleet-bypass <reason>", "warning");
+					return;
+				}
+				state.enabled = true;
+				if (state.phase === "off") state.phase = "discovery";
+				state.fleetBypassUntilPhaseChange = true;
+				state.evidence.fleetBypass = { reason: tail, at: nowIso() };
+				persist();
+				updateStatus(ctx);
+				ctx.ui.notify(`BDD fleet launch gates bypassed: ${tail}`, "warning");
 				return;
 			}
 

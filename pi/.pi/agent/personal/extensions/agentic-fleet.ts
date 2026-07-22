@@ -20,6 +20,11 @@ import {
 	type FleetUserConfig,
 } from "../lib/fleet/config.ts";
 import { maybeTransformForFleet } from "../lib/fleet/intent.ts";
+import {
+	assertFleetAllowed,
+	normalizeFleetKind,
+} from "../lib/bdd/fleet-gate.ts";
+import { readBddStateFromBranch } from "../lib/bdd/session-state.ts";
 import { loadModelResolveContext } from "../lib/fleet/model-resolve.ts";
 import {
 	buildFleetPlan,
@@ -135,10 +140,45 @@ function buildPlanFromArgs(options: {
 	return plan;
 }
 
+function fleetBlockedByBdd(
+	ctx: ExtensionContext | undefined,
+	kind: string,
+): string | undefined {
+	if (!ctx?.sessionManager) return undefined;
+	try {
+		const branch = ctx.sessionManager.getBranch() as Array<{
+			type?: string;
+			customType?: string;
+			data?: unknown;
+		}>;
+		const bdd = readBddStateFromBranch(branch);
+		if (!bdd?.enabled || bdd.phase === "off") return undefined;
+		const gate = assertFleetAllowed({
+			phase: bdd.phase,
+			enabled: bdd.enabled,
+			kind: normalizeFleetKind(kind),
+			fleetBypass: bdd.fleetBypassUntilPhaseChange,
+			planningOnly: false,
+		});
+		return gate.allowed ? undefined : gate.reason;
+	} catch {
+		return undefined;
+	}
+}
+
 async function dispatchPlan(
 	pi: ExtensionAPI,
 	plan: FleetPlan,
+	ctx?: ExtensionContext,
 ): Promise<{ ok: boolean; text: string; details: Record<string, unknown> }> {
+	const blocked = fleetBlockedByBdd(ctx, plan.kind);
+	if (blocked) {
+		return {
+			ok: false,
+			text: `## Fleet dispatch blocked by BDD\n\n${blocked}`,
+			details: { ok: false, blocked: true, reason: blocked, plan },
+		};
+	}
 	const reply = await callSubagentRpc(pi.events, "spawn", plan.subagentParams, {
 		timeoutMs: 60_000,
 		source: "agentic-fleet",
@@ -355,7 +395,7 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 				};
 			}
 
-			const result = await dispatchPlan(pi, plan);
+			const result = await dispatchPlan(pi, plan, lastCtx);
 			if (lastCtx?.hasUI) {
 				lastCtx.ui.notify(
 					result.ok ? `Fleet ${plan.kind}×${plan.count} launched` : `Fleet launch issue`,
@@ -476,7 +516,7 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 			}
 
 			ctx.ui.notify(`Dispatching ${kind}×${count}…`, "info");
-			const result = await dispatchPlan(pi, plan);
+			const result = await dispatchPlan(pi, plan, ctx);
 			pi.sendMessage(
 				{ customType: "fleet-dispatch", content: result.text, display: true },
 				{ triggerTurn: false },

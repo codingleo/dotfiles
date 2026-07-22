@@ -198,16 +198,71 @@ export function validateGreenResult(result: RunCommandResult): { ok: boolean; re
 	return { ok: true, reason: result.summary };
 }
 
-/** True if green command is "same or broader" than red (simple heuristic). */
+function tokenizeCmd(cmd: string): string[] {
+	// naive split; good enough for bun/npm/pnpm/yarn/go test invocations
+	return cmd
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean);
+}
+
+/** Non-test invocations that share a binary with test runners (e.g. bun -e). */
+function isNonTestInvocation(tokens: string[]): boolean {
+	if (tokens.length < 2) return false;
+	const bin = tokens[0]!.toLowerCase();
+	const sub = tokens[1]!.toLowerCase();
+	if ((bin === "bun" || bin === "node" || bin === "deno") && (sub === "-e" || sub === "--eval" || sub === "eval")) {
+		return true;
+	}
+	if (bin === "npm" || bin === "pnpm" || bin === "yarn") {
+		if (sub === "run" && tokens[2] && !/test|gherkin|spec/i.test(tokens[2])) return true;
+		if (!/^(test|run)$/i.test(sub) && sub !== "exec") {
+			// npm build, npm start, etc.
+			if (!/test/i.test(sub)) return true;
+		}
+	}
+	return false;
+}
+
+function looksLikeTestFocus(token: string): boolean {
+	return (
+		/\.(test|spec)\.[cm]?[jt]sx?$/i.test(token) ||
+		/\/tests?\//i.test(token) ||
+		/\.feature$/i.test(token) ||
+		/^@/.test(token)
+	);
+}
+
+/**
+ * True if green is the same test command or a broader suite covering red.
+ * Rejects same-binary non-tests (bun -e, npm run build) and unrelated filters.
+ */
 export function greenCoversRed(redCommand: string, greenCommand: string): boolean {
 	const r = redCommand.trim();
 	const g = greenCommand.trim();
 	if (!r || !g) return false;
 	if (r === g) return true;
-	// green is prefix of red with extra args dropped, or red starts with green
-	if (r.startsWith(g)) return true;
-	// same base runner
-	const r0 = r.split(/\s+/)[0];
-	const g0 = g.split(/\s+/)[0];
-	return Boolean(r0 && g0 && r0 === g0);
+
+	const rt = tokenizeCmd(r);
+	const gt = tokenizeCmd(g);
+	if (rt.length === 0 || gt.length === 0) return false;
+	if (isNonTestInvocation(gt)) return false;
+
+	// Green is token-prefix of red → broader suite (green `bun test`, red `bun test a.test.ts`)
+	if (gt.length <= rt.length && gt.every((t, i) => t === rt[i])) {
+		return true;
+	}
+
+	// Red is token-prefix of green → same command + extra flags (red `bun test a`, green `bun test a --bail`)
+	if (rt.length <= gt.length && rt.every((t, i) => t === gt[i])) {
+		return true;
+	}
+
+	// Same runner binary + green includes red's focus path/filter
+	const redFocus = rt.find((t, i) => i > 0 && looksLikeTestFocus(t));
+	if (redFocus && gt[0] === rt[0] && g.includes(redFocus)) {
+		return true;
+	}
+
+	return false;
 }

@@ -20,6 +20,7 @@ export function defaultConfig(partial?: Partial<BddConfig> & { commands?: Partia
 	return {
 		version: 1,
 		enabledByDefault: partial?.enabledByDefault ?? false,
+		strictGreenCoversRed: partial?.strictGreenCoversRed ?? true,
 		featurePathPatterns: partial?.featurePathPatterns ?? [...DEFAULT_FEATURE_PATTERNS],
 		testPathPatterns: partial?.testPathPatterns ?? [...DEFAULT_TEST_PATTERNS],
 		implementationPathPatterns: partial?.implementationPathPatterns ?? [...DEFAULT_IMPL_PATTERNS],
@@ -65,6 +66,7 @@ export function parseConfigJson(raw: unknown): BddConfig {
 
 	return defaultConfig({
 		enabledByDefault: o.enabledByDefault === true,
+		strictGreenCoversRed: o.strictGreenCoversRed === false ? false : true,
 		featurePathPatterns: strArr(o.featurePathPatterns, DEFAULT_FEATURE_PATTERNS),
 		testPathPatterns: strArr(o.testPathPatterns, DEFAULT_TEST_PATTERNS),
 		implementationPathPatterns: strArr(o.implementationPathPatterns, DEFAULT_IMPL_PATTERNS),

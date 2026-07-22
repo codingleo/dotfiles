@@ -155,9 +155,24 @@ describe("validateRedResult / validateGreenResult", () => {
 });
 
 describe("greenCoversRed", () => {
-	test("same or prefix", () => {
-		expect(greenCoversRed("bun test foo", "bun test foo")).toBe(true);
-		expect(greenCoversRed("bun test foo", "bun test")).toBe(true);
-		expect(greenCoversRed("bun test", "npm test")).toBe(false);
+	test("exact match", () => {
+		expect(greenCoversRed("bun test foo.test.ts", "bun test foo.test.ts")).toBe(true);
+	});
+
+	test("broader suite (green token-prefix of red)", () => {
+		expect(greenCoversRed("bun test a/b.test.ts", "bun test")).toBe(true);
+		expect(greenCoversRed("bun test a/b.test.ts", "bun test a/b.test.ts")).toBe(true);
+	});
+
+	test("rejects bun -e and unrelated same binary", () => {
+		expect(greenCoversRed("bun test a.test.ts", "bun -e '1'")).toBe(false);
+		expect(greenCoversRed("bun test a.test.ts", "bun test b.test.ts")).toBe(false);
+		expect(greenCoversRed("npm test", "npm run build")).toBe(false);
+	});
+
+	test("accepts green that still includes red focus path", () => {
+		expect(
+			greenCoversRed("bun test tests/unit/a.test.ts", "bun test tests/unit/a.test.ts --bail"),
+		).toBe(true);
 	});
 });

@@ -34,6 +34,11 @@ export interface BddConfig {
 	 * if a project config file is present.
 	 */
 	enabledByDefault?: boolean;
+	/**
+	 * When true (default), bdd_assert_green rejects green commands that do not cover red.
+	 * Opt out in `.pi/bdd.json` with `"strictGreenCoversRed": false`.
+	 */
+	strictGreenCoversRed?: boolean;
 	/** Glob-ish patterns for acceptance feature files */
 	featurePathPatterns: string[];
 	/** Glob-ish patterns for unit/integration/e2e test files */
@@ -85,19 +90,39 @@ export interface BddEvidence {
 		at: string;
 	};
 	crap?: string;
-	/** Last bypass reason when user/agent skipped gates */
+	/** Last path/bash bypass reason when user/agent skipped path gates */
 	bypass?: {
 		reason: string;
 		at: string;
 	};
+	/** Fleet-specific bypass (does not imply path bypass) */
+	fleetBypass?: {
+		reason: string;
+		at: string;
+	};
+	/** Review/research fleets auto-recorded at dispatch (P0.2+) */
+	fleetRuns?: FleetRunRecord[];
+}
+
+export interface FleetRunRecord {
+	runId: string;
+	asyncDir?: string;
+	kind: string;
+	expectedCount: number;
+	at: string;
+	synthesisPath?: string;
+	blockersAccepted?: string[];
+	deferred?: Array<{ id: string; reason: string }>;
 }
 
 export interface BddState {
 	enabled: boolean;
 	phase: BddPhase;
 	evidence: BddEvidence;
-	/** When set, path gates are suspended until cleared or phase change */
+	/** When set, path/bash gates are suspended until cleared or phase change */
 	bypassUntilPhaseChange?: boolean;
+	/** When set, fleet launch gates are suspended until cleared or phase change */
+	fleetBypassUntilPhaseChange?: boolean;
 	configPath?: string;
 	source: "default" | "file" | "inferred";
 }
