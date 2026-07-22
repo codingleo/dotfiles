@@ -43,8 +43,11 @@ Roadmap / design locks: `docs/agentic-bdd-roadmap.md`.
 | `bdd_set_phase` | Same as phase commands from the model |
 | `bdd_assert_red` | Run tests; **must fail**; store evidence |
 | `bdd_assert_green` | Run tests; **must pass**; store evidence |
-| `bdd_record_evidence` | Example Map, acceptance, mutation, CRAP |
-| `bdd_handoff` | Print completeness checklist |
+| `bdd_assert_mutation` | Optional failCmd→passCmd mutation (parent edits) |
+| `bdd_record_evidence` | Example Map, acceptance, mutation, CRAP, fleet synthesis |
+| `bdd_handoff` | Completeness checklist; `asPr` / `/bdd handoff pr` for PR body |
+| `agentic_doctor` | `/agentic doctor` — config/auth/RPC diagnostics |
+| skill `ship` | Full discovery→verify fleet→handoff recipe |
 
 Path gates block `edit`/`write` by phase (e.g. no `src/**` in red).
 
