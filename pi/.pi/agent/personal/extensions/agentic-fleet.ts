@@ -106,7 +106,7 @@ function ensureCaps(
 
 function buildPlanFromArgs(options: {
 	kind: FleetKind;
-	count: number;
+	count?: number;
 	topic: string;
 	scope?: string;
 	agent?: string;
@@ -115,9 +115,17 @@ function buildPlanFromArgs(options: {
 	concurrency?: number;
 	extra?: string;
 	user: FleetUserConfig;
+	cwd?: string;
 }): FleetPlan {
-	const { maxTasks, maxConcurrency, note } = ensureCaps(options.user);
-	let policy = modelPolicyFromUser(options.user);
+	const user = loadFleetUserConfig(undefined, { cwd: options.cwd ?? process.cwd() });
+	const mergedUser = { ...user, ...options.user, models: { ...user.models, ...options.user.models } };
+	const { maxTasks, maxConcurrency, note } = ensureCaps(mergedUser);
+	const defaultN =
+		options.kind === "review" || options.kind === "ux"
+			? (mergedUser.defaultVerifyCount ?? 3)
+			: (mergedUser.defaultConcurrency ?? 5);
+	const count = options.count ?? defaultN;
+	let policy = modelPolicyFromUser(mergedUser);
 	// Explicit tool overrides are exclusive — never merge with pool/kind
 	if (options.models?.length) {
 		policy = { models: options.models, explicitOverride: true };
@@ -128,22 +136,27 @@ function buildPlanFromArgs(options: {
 	const plan = buildFleetPlan({
 		kind: options.kind,
 		topic: options.topic,
-		count: options.count,
+		count,
 		agent: options.agent,
 		scope: options.scope,
 		extraInstructions: options.extra,
-		concurrency: options.concurrency ?? options.user.defaultConcurrency,
+		concurrency: options.concurrency ?? mergedUser.defaultConcurrency,
 		maxConcurrency,
 		maxTasks,
 		async: true,
 		modelPolicy: policy,
 		outputDir: ".pi/fleet-runs",
-		// Always try anthropic / openai-codex / xai before OpenRouter
 		preferNativeProviders: true,
 		modelResolveContext: loadModelResolveContext(),
 	});
 	if (note) plan.warnings.push(note);
-	const loaded = loadFleetUserConfigDetailed();
+	if (options.count == null) {
+		plan.warnings.push(`Using default count=${count} (set count explicitly or defaultVerifyCount in fleet.json)`);
+	}
+	if (count > 5) {
+		plan.warnings.push(`Cost note: fleet size ${count} > 5 — confirm spend before dispatch.`);
+	}
+	const loaded = loadFleetUserConfigDetailed(undefined, { cwd: options.cwd ?? process.cwd() });
 	if (loaded.parseError) {
 		plan.warnings.push(`fleet.json parse issue: ${loaded.parseError}`);
 	}
@@ -325,7 +338,12 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 		parameters: Type.Object({
 			kind: Type.String({ description: "research | review | ux | custom" }),
 			topic: Type.String({ description: "Subject, question, or review target description" }),
-			count: Type.Integer({ minimum: 1, description: "How many agents to launch" }),
+			count: Type.Optional(
+				Type.Integer({
+					minimum: 1,
+					description: "How many agents (default: 3 for review/ux, else 5)",
+				}),
+			),
 			scope: Type.Optional(Type.String({ description: "PR URL, paths, or diff scope" })),
 			agent: Type.Optional(Type.String({ description: "Override agent name for all children" })),
 			model: Type.Optional(Type.String({ description: "Single model for all children" })),
@@ -356,8 +374,9 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 			try {
 				const plan = buildPlanFromArgs({
 					kind,
-					count: Number(params.count),
+					count: params.count != null ? Number(params.count) : undefined,
 					topic: String(params.topic),
+					cwd: lastCtx?.cwd,
 					scope: params.scope ? String(params.scope) : undefined,
 					agent: params.agent ? String(params.agent) : undefined,
 					model: params.model ? String(params.model) : undefined,
@@ -395,7 +414,12 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 		parameters: Type.Object({
 			kind: Type.String({ description: "research | review | ux | custom" }),
 			topic: Type.String({ description: "Subject or review target" }),
-			count: Type.Integer({ minimum: 1, description: "Number of agents" }),
+			count: Type.Optional(
+				Type.Integer({
+					minimum: 1,
+					description: "Number of agents (default: 3 for review/ux)",
+				}),
+			),
 			scope: Type.Optional(Type.String()),
 			agent: Type.Optional(Type.String()),
 			model: Type.Optional(Type.String()),
@@ -428,8 +452,9 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 			try {
 				plan = buildPlanFromArgs({
 					kind,
-					count: Number(params.count),
+					count: params.count != null ? Number(params.count) : undefined,
 					topic: String(params.topic),
+					cwd: lastCtx?.cwd,
 					scope: params.scope ? String(params.scope) : undefined,
 					agent: params.agent ? String(params.agent) : undefined,
 					model: params.model ? String(params.model) : undefined,
@@ -624,19 +649,17 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 				ctx.ui.notify(`Unknown fleet kind. Try research|review|ux`, "warning");
 				return;
 			}
-			const count = Number(parts[idx + 1]);
-			if (!Number.isInteger(count) || count < 1) {
-				ctx.ui.notify(`Usage: /fleet ${kind} <count> <topic>`, "warning");
-				return;
-			}
-			const topic = parts.slice(idx + 2).join(" ").trim();
+			const maybeCount = Number(parts[idx + 1]);
+			const hasCount = Number.isInteger(maybeCount) && maybeCount >= 1;
+			const count = hasCount ? maybeCount : undefined;
+			const topic = parts.slice(idx + (hasCount ? 2 : 1)).join(" ").trim();
 			if (!topic) {
-				ctx.ui.notify(`Usage: /fleet ${kind} ${count} <topic>`, "warning");
+				ctx.ui.notify(`Usage: /fleet ${kind} [count] <topic>`, "warning");
 				return;
 			}
 
-			const user = loadFleetUserConfig();
-			const plan = buildPlanFromArgs({ kind, count, topic, user });
+			const user = loadFleetUserConfig(undefined, { cwd: ctx.cwd });
+			const plan = buildPlanFromArgs({ kind, count, topic, user, cwd: ctx.cwd });
 
 			if (mode === "plan") {
 				const text = formatPlanSummary(plan);

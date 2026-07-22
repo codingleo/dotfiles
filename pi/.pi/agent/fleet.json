@@ -1,5 +1,6 @@
 {
   "defaultConcurrency": 12,
+  "defaultVerifyCount": 3,
   "asyncByDefault": true,
   "autoRaiseCaps": false,
   "caps": {

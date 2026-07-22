@@ -64,6 +64,8 @@ export interface CommandEvidence {
 	exitCode: number;
 	summary: string;
 	at: string;
+	/** Best-effort failed test names/hints parsed from output */
+	failedTestHints?: string[];
 }
 
 export interface BddEvidence {
@@ -82,6 +84,10 @@ export interface BddEvidence {
 		proven: boolean;
 		note: string;
 		at: string;
+		failCommand?: string;
+		passCommand?: string;
+		failSummary?: string;
+		passSummary?: string;
 	};
 	acceptance?: {
 		/** Feature path(s) or explicit N/A */

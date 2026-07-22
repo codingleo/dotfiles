@@ -47,12 +47,15 @@ import {
 	phaseLabel,
 	suggestedNextPhase,
 } from "../lib/bdd/phases.ts";
+import { formatDoctorReport, runAgenticDoctor } from "../lib/bdd/doctor.ts";
+import { formatPrBody } from "../lib/bdd/pr-handoff.ts";
 import {
 	greenCoversRed,
 	runCommand,
 	validateGreenResult,
 	validateRedResult,
 } from "../lib/bdd/run-command.ts";
+import { callSubagentRpc } from "../lib/fleet/rpc.ts";
 import type { BddConfig, BddEvidence, BddPhase, BddState } from "../lib/bdd/types.ts";
 
 const CUSTOM_TYPE = BDD_STATE_CUSTOM_TYPE;
@@ -330,17 +333,28 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 				exitCode: result.exitCode,
 				summary: result.summary,
 				at: nowIso(),
+				failedTestHints: result.failedTestHints,
 			};
+			const hints =
+				result.failedTestHints?.length
+					? `\nHints: ${result.failedTestHints.slice(0, 5).join(" | ")}`
+					: "";
 			persist();
 			updateStatus(extCtx);
 			return {
 				content: [
 					{
 						type: "text",
-						text: `Red evidence recorded.\nCommand: ${command}\n${result.summary}\nYou may /bdd green and implement the minimum fix.`,
+						text: `Red evidence recorded.\nCommand: ${command}\n${result.summary}${hints}\nYou may /bdd green and implement the minimum fix.`,
 					},
 				],
-				details: { ok: true, exitCode: result.exitCode, command, summary: result.summary },
+				details: {
+					ok: true,
+					exitCode: result.exitCode,
+					command,
+					summary: result.summary,
+					failedTestHints: result.failedTestHints,
+				},
 			};
 		},
 	});
@@ -532,9 +546,14 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 		label: "BDD Handoff",
 		description:
 			"Produce the required BDD/TDD handoff evidence block (red/green/acceptance/mutation/CRAP/fleet). " +
-			"Reports missing fields. Review fleets require synthesisPath per runId.",
-		parameters: Type.Object({}),
-		async execute(_id, _params, _signal, _onUpdate, ctx) {
+			"Reports missing fields. Review fleets require synthesisPath per runId. Use asPr for PR body.",
+		parameters: Type.Object({
+			asPr: Type.Optional(
+				Type.Boolean({ description: "If true, also emit GitHub PR body markdown" }),
+			),
+			title: Type.Optional(Type.String({ description: "PR title/summary line" })),
+		}),
+		async execute(_id, params, _signal, _onUpdate, ctx) {
 			syncFleetRunsFromBranch(ctx as ExtensionContext);
 			const { ok, missing } = handoffComplete(state.evidence);
 			const body = formatHandoff(state.evidence, state.phase);
@@ -545,12 +564,120 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 							`- fleet ${r.kind} \`${r.runId}\` synthesis=${r.synthesisPath ?? "(missing)"}`,
 					)
 					.join("\n") || "- (no fleet runs)";
-			const text = ok
+			let text = ok
 				? `${body}\n### Fleet runs\n${fleetLines}\n`
 				: `${body}\n### Fleet runs\n${fleetLines}\n\n**Missing:** ${missing.join(", ")}\n`;
+			if (params.asPr) {
+				text +=
+					`\n---\n\n` +
+					formatPrBody({
+						phase: state.phase,
+						evidence: state.evidence,
+						title: params.title ? String(params.title) : state.evidence.focus,
+					});
+			}
 			return {
 				content: [{ type: "text", text }],
 				details: { ok, missing, evidence: state.evidence },
+			};
+		},
+	});
+
+	const assertMutationTool = defineTool({
+		name: "bdd_assert_mutation",
+		label: "BDD Assert Mutation",
+		description:
+			"Command-backed mutation check: run failCommand (must fail), then passCommand (must pass). " +
+			"Parent must apply/restore the break — this tool only runs commands and records evidence.",
+		parameters: Type.Object({
+			failCommand: Type.String({
+				description: "Command that must fail after the deliberate break",
+			}),
+			passCommand: Type.Optional(
+				Type.String({
+					description: "Command that must pass after restore (default: last green or red command)",
+				}),
+			),
+			note: Type.Optional(Type.String({ description: "What was broken and restored" })),
+		}),
+		async execute(_id, params, _signal, _onUpdate, ctx) {
+			const extCtx = ctx as ExtensionContext;
+			reloadConfig(cwdOf(extCtx));
+			const failCommand = String(params.failCommand);
+			const passCommand = String(
+				params.passCommand ??
+					state.evidence.green?.command ??
+					state.evidence.red?.command ??
+					config.commands.unitTest,
+			);
+			const failRun = await runCommand({ cwd: cwdOf(extCtx), command: failCommand });
+			const failCheck = validateRedResult(failRun);
+			if (!failCheck.ok) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Mutation fail-step did not fail as required.\n${failCheck.reason}`,
+						},
+					],
+					details: { ok: false, step: "fail" },
+				};
+			}
+			const passRun = await runCommand({ cwd: cwdOf(extCtx), command: passCommand });
+			const passCheck = validateGreenResult(passRun);
+			if (!passCheck.ok) {
+				return {
+					content: [
+						{
+							type: "text",
+							text:
+								`Mutation pass-step failed after restore — tree may still be broken.\n${passCheck.reason}`,
+						},
+					],
+					details: { ok: false, step: "pass" },
+				};
+			}
+			state.evidence.mutation = {
+				proven: true,
+				note: String(params.note ?? "command-backed mutation"),
+				at: nowIso(),
+				failCommand,
+				passCommand,
+				failSummary: failRun.summary,
+				passSummary: passRun.summary,
+			};
+			persist();
+			updateStatus(extCtx);
+			return {
+				content: [
+					{
+						type: "text",
+						text: `Mutation proven.\nFail: ${failCommand} → ${failRun.summary}\nPass: ${passCommand} → ${passRun.summary}`,
+					},
+				],
+				details: { ok: true, mutation: state.evidence.mutation },
+			};
+		},
+	});
+
+	const doctorTool = defineTool({
+		name: "agentic_doctor",
+		label: "Agentic Doctor",
+		description:
+			"Read-only diagnostics for BDD config, fleet setup, auth, typebox, caps, and pi-subagents RPC.",
+		parameters: Type.Object({}),
+		async execute(_id, _p, _s, _u, ctx) {
+			const cwd = cwdOf(ctx as ExtensionContext);
+			const report = await runAgenticDoctor({
+				cwd,
+				rpcPing: async () => {
+					const reply = await callSubagentRpc(pi.events, "ping", {}, { timeoutMs: 3000 });
+					return reply.success;
+				},
+			});
+			return {
+				content: [{ type: "text", text: formatDoctorReport(report) }],
+				details: { ok: report.ok, report },
 			};
 		},
 	});
@@ -559,8 +686,10 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 	pi.registerTool(setPhaseTool);
 	pi.registerTool(assertRedTool);
 	pi.registerTool(assertGreenTool);
+	pi.registerTool(assertMutationTool);
 	pi.registerTool(recordEvidenceTool);
 	pi.registerTool(handoffTool);
+	pi.registerTool(doctorTool);
 
 	// Keep tools active
 	pi.on("session_start", async (_e, ctx) => {
@@ -571,8 +700,10 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 			"bdd_set_phase",
 			"bdd_assert_red",
 			"bdd_assert_green",
+			"bdd_assert_mutation",
 			"bdd_record_evidence",
 			"bdd_handoff",
+			"agentic_doctor",
 		]) {
 			active.add(name);
 		}
@@ -710,6 +841,7 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 				"init",
 				"bypass",
 				"fleet-bypass",
+				"doctor",
 				"next",
 			];
 			return opts
@@ -760,11 +892,36 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 				return;
 			}
 
+			if (cmd === "doctor") {
+				const report = await runAgenticDoctor({
+					cwd: cwdOf(ctx),
+					rpcPing: async () => {
+						const reply = await callSubagentRpc(pi.events, "ping", {}, { timeoutMs: 3000 });
+						return reply.success;
+					},
+				});
+				pi.sendMessage(
+					{ customType: "agentic-doctor", content: formatDoctorReport(report), display: true },
+					{ triggerTurn: false },
+				);
+				return;
+			}
+
 			if (cmd === "handoff") {
 				syncFleetRunsFromBranch(ctx);
 				const { ok, missing } = handoffComplete(state.evidence);
 				const body = formatHandoff(state.evidence, state.phase);
-				const text = ok ? body : `${body}\nMissing: ${missing.join(", ")}`;
+				const asPr = /\bpr\b/i.test(tail);
+				let text = ok ? body : `${body}\nMissing: ${missing.join(", ")}`;
+				if (asPr) {
+					text +=
+						`\n---\n\n` +
+						formatPrBody({
+							phase: state.phase,
+							evidence: state.evidence,
+							title: state.evidence.focus,
+						});
+				}
 				pi.sendMessage(
 					{ customType: "bdd-handoff", content: text, display: true },
 					{ triggerTurn: false },

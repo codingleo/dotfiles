@@ -14,6 +14,8 @@ export interface RunCommandResult {
 	timedOut?: boolean;
 	/** True when spawn failed (missing binary, etc.) */
 	spawnError?: boolean;
+	/** Best-effort failed test identifiers from output */
+	failedTestHints?: string[];
 }
 
 export interface RunCommandOptions {
@@ -75,6 +77,7 @@ export function runCommand(options: RunCommandOptions): Promise<RunCommandResult
 		const finish = (exitCode: number) => {
 			if (settled) return;
 			settled = true;
+			const combined = `${stderr}\n${stdout}`;
 			resolve({
 				exitCode,
 				stdout,
@@ -82,6 +85,7 @@ export function runCommand(options: RunCommandOptions): Promise<RunCommandResult
 				command,
 				timedOut,
 				spawnError,
+				failedTestHints: extractFailedTestHints(combined),
 				summary: summarizeOutput(exitCode, stdout, stderr, maxSummaryChars, {
 					timedOut,
 					spawnError,
@@ -130,6 +134,33 @@ export function runCommand(options: RunCommandOptions): Promise<RunCommandResult
 }
 
 const INFRA_EXIT_CODES = new Set([124, 126, 127]);
+
+/** Pull likely failed test names from runner output (best-effort). */
+export function extractFailedTestHints(output: string, limit = 12): string[] {
+	const hints: string[] = [];
+	const seen = new Set<string>();
+	const patterns: RegExp[] = [
+		/(?:FAIL|✗|×|✖)\s+(.+?)\s*$/gim,
+		/(?:\d+\)\s+)(.+?)\s*$/gm,
+		/(?:not ok \d+\s*-\s*)(.+?)\s*$/gim,
+		/(?:●|✓)\s+(?:FAIL\s+)?(.+?)\s*$/gm,
+		/(?:Expected|AssertionError)[\s\S]{0,40}?\n\s*(.+?\.test\.[\w]+)/gi,
+		/([\w./-]+\.(?:test|spec)\.[\w]+)/g,
+	];
+	for (const re of patterns) {
+		let m: RegExpExecArray | null;
+		const r = new RegExp(re.source, re.flags);
+		while ((m = r.exec(output)) !== null) {
+			const h = (m[1] ?? m[0]).replace(/\s+/g, " ").trim().slice(0, 160);
+			if (!h || h.length < 3) continue;
+			if (seen.has(h)) continue;
+			seen.add(h);
+			hints.push(h);
+			if (hints.length >= limit) return hints;
+		}
+	}
+	return hints;
+}
 
 /**
  * Red must be a real failing test run — not pass, timeout, or missing binary.

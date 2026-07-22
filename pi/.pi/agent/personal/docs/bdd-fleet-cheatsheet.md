@@ -183,6 +183,11 @@ Copies `status.json` + `output-*.log` / artifact markdown into
 | `/bdd bypass <reason>` | Path/bash gates off until phase change |
 | `/bdd fleet-bypass <reason>` | Fleet launch gates off until phase change |
 | `/bdd handoff` | Evidence block + missing fields |
+| `/bdd handoff pr` | Same + GitHub PR body |
+| `/bdd doctor` | Agentic doctor (BDD/fleet/auth/RPC) |
+| `bdd_assert_mutation` | Command-backed fail→pass mutation |
+| `/fleet collect <runId>` | Snapshot member outputs |
+| `/ship` | Full recipe skill (see skills/ship) |
 
 ### Tools
 
@@ -254,4 +259,4 @@ User fleet models/caps: `~/.pi/agent/fleet.json`
 
 ---
 
-*Last updated with P0.3 fleet_collect + #2514 fleet-review fixes on app branch.*
+*Last updated: P0.4–P0.6 + P1 (doctor, mutation, ship skill, default N=3, PR handoff, project fleet overlay).*

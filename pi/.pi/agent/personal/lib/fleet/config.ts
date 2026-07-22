@@ -35,6 +35,8 @@ export interface FleetUserConfig {
 	asyncByDefault?: boolean;
 	/** When true, allow ensureSubagentCaps to write config (default false — warn only) */
 	autoRaiseCaps?: boolean;
+	/** Default N for verify review fleets (default 3) */
+	defaultVerifyCount?: number;
 }
 
 export interface LoadFleetUserConfigResult {
@@ -51,37 +53,82 @@ export function fleetUserConfigPath(agentDir = join(homedir(), ".pi", "agent")):
 	return join(agentDir, "fleet.json");
 }
 
+function readJsonObject(
+	path: string,
+	read: (p: string) => string,
+): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+	try {
+		const raw = JSON.parse(read(path)) as unknown;
+		if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+			return { ok: false, error: `${path}: not a JSON object` };
+		}
+		return { ok: true, value: raw as Record<string, unknown> };
+	} catch (err) {
+		return { ok: false, error: `${path}: ${err instanceof Error ? err.message : String(err)}` };
+	}
+}
+
+/** Shallow merge; nested models/caps objects are merged one level. Project may only narrow later. */
+export function mergeFleetConfigs(
+	base: FleetUserConfig,
+	overlay: FleetUserConfig,
+): FleetUserConfig {
+	return {
+		...base,
+		...overlay,
+		caps: { ...base.caps, ...overlay.caps },
+		models: { ...base.models, ...overlay.models },
+		defaultConcurrency: overlay.defaultConcurrency ?? base.defaultConcurrency,
+		asyncByDefault: overlay.asyncByDefault ?? base.asyncByDefault,
+		autoRaiseCaps: overlay.autoRaiseCaps ?? base.autoRaiseCaps,
+		defaultVerifyCount: overlay.defaultVerifyCount ?? base.defaultVerifyCount,
+	};
+}
+
 export function loadFleetUserConfigDetailed(
 	path = fleetUserConfigPath(),
-	io: { exists?: (p: string) => boolean; read?: (p: string) => string } = {},
+	io: { exists?: (p: string) => boolean; read?: (p: string) => string; cwd?: string } = {},
 ): LoadFleetUserConfigResult {
 	const exists = io.exists ?? existsSync;
 	const read = io.read ?? ((p: string) => readFileSync(p, "utf8"));
 	const candidates = [path];
-	// Only add stow fallback when primary missing
 	if (!exists(path)) {
 		candidates.push(join(homedir(), "dotfiles", "pi", ".pi", "agent", "fleet.json"));
 	}
+	let config: FleetUserConfig = {};
+	let loadedPath: string | undefined;
 	let lastParseError: string | undefined;
 	for (const candidate of candidates) {
 		if (!exists(candidate)) continue;
-		try {
-			const raw = JSON.parse(read(candidate)) as unknown;
-			if (!raw || typeof raw !== "object") {
-				lastParseError = `${candidate}: not a JSON object`;
-				continue;
-			}
-			return { config: raw as FleetUserConfig, path: candidate };
-		} catch (err) {
-			lastParseError = `${candidate}: ${err instanceof Error ? err.message : String(err)}`;
+		const parsed = readJsonObject(candidate, read);
+		if (!parsed.ok) {
+			lastParseError = parsed.error;
+			continue;
+		}
+		config = parsed.value as FleetUserConfig;
+		loadedPath = candidate;
+		break;
+	}
+
+	// Project overlay: cwd/.pi/fleet.json (additive; does not replace user file path reporting)
+	const cwd = io.cwd ?? process.cwd();
+	const projectPath = join(cwd, ".pi", "fleet.json");
+	if (exists(projectPath)) {
+		const proj = readJsonObject(projectPath, read);
+		if (proj.ok) {
+			config = mergeFleetConfigs(config, proj.value as FleetUserConfig);
+			loadedPath = loadedPath ? `${loadedPath} + ${projectPath}` : projectPath;
+		} else {
+			lastParseError = proj.error;
 		}
 	}
-	return { config: {}, parseError: lastParseError };
+
+	return { config, path: loadedPath, parseError: lastParseError };
 }
 
 export function loadFleetUserConfig(
 	path = fleetUserConfigPath(),
-	io: { exists?: (p: string) => boolean; read?: (p: string) => string } = {},
+	io: { exists?: (p: string) => boolean; read?: (p: string) => string; cwd?: string } = {},
 ): FleetUserConfig {
 	return loadFleetUserConfigDetailed(path, io).config;
 }
