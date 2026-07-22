@@ -58,6 +58,13 @@ Live inspector: `/subagents-fleet` or **Ctrl+Alt+F**.
 
 **Tests:** `bun test lib/fleet`
 
+## Docs (check anytime)
+
+| Doc | Purpose |
+|-----|--------|
+| [`../docs/bdd-fleet-cheatsheet.md`](../docs/bdd-fleet-cheatsheet.md) | **Operator guide** — phases, red→green→verify, fleet gates, troubleshooting |
+| [`../docs/agentic-bdd-roadmap.md`](../docs/agentic-bdd-roadmap.md) | Design locks + P0/P1 implementation roadmap |
+
 ## Bundled: `bdd-mode.ts` (cross-project BDD → TDD)
 
 Enforces **Example Map → formulation → red → green → refactor → verify** with path gates and recorded evidence. Works in **any** repo; configure per project with `.pi/bdd.json`.
@@ -83,7 +90,12 @@ Enforces **Example Map → formulation → red → green → refactor → verify
 /tdd …        # prompt → red phase
 ```
 
-**Hard gates:** `edit`/`write` to implementation paths blocked until red evidence exists; mutating `bash` blocked in discovery/formulation/red; discovery/formulation/red restrict path classes. Escape: `/bdd bypass <reason>` (logged). Red rejects timeouts (124) and command-not-found (127).
+**Hard gates:**
+- Cannot `/bdd green` or `/bdd verify` without recorded **red** (failing test via `bdd_assert_red`).
+- `edit`/`write` to implementation paths blocked until red evidence; mutating `bash` blocked in discovery/formulation/red.
+- Fleets / multi-agent `subagent` blocked in red/green/refactor (use verify).
+- Green must **cover** red (`strictGreenCoversRed` default on).
+- Escape paths: `/bdd bypass <reason>` · fleets: `/bdd fleet-bypass <reason>`.
 
 **Tests:**
 

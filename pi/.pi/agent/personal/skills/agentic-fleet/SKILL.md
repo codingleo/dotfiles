@@ -11,6 +11,8 @@ description: >
 
 Use this when the user wants **many** concurrent specialists — not a single reviewer.
 
+**With BDD mode on:** review fleets only in **`verify`** (or `/bdd off` / `fleet-bypass`). See `docs/bdd-fleet-cheatsheet.md`.
+
 ## Prefer these entry points
 
 | User intent | Command / tool |

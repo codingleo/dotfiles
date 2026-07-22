@@ -13,6 +13,11 @@ description: >
 This skill is **project-agnostic**. It uses the **bdd-mode** Pi extension for hard
 gates and discovers each repo’s runners via `.pi/bdd.json` or `package.json` scripts.
 
+**Operator cheatsheet (read anytime):**
+`docs/bdd-fleet-cheatsheet.md` (next to this package) — phases, why green/verify need red, fleet gates, troubleshooting.
+
+Roadmap / design locks: `docs/agentic-bdd-roadmap.md`.
+
 ## When to load
 
 - User asks for BDD, TDD, Example Map, Gherkin, red-green-refactor, or acceptance tests
@@ -23,8 +28,8 @@ gates and discovers each repo’s runners via `.pi/bdd.json` or `package.json` s
 
 1. **Discovery before formulation** — Example Map (Rules / Examples / Questions) before scenarios or production code when the change is behavior-shaped.
 2. **Formulation before implementation** — acceptance scenarios and/or unit tests exist first.
-3. **Red before green** — prove failure with `bdd_assert_red` before editing implementation.
-4. **Green minimum** — smallest change that passes; then refactor if needed.
+3. **Red before green** — prove failure with `bdd_assert_red` before `/bdd green` or any implementation. The machine **blocks** `green` and `verify` until red evidence exists.
+4. **Green minimum** — smallest change that passes; `bdd_assert_green` must **cover** the red command (`strictGreenCoversRed` default on).
 5. **Handoff evidence** — red command/reason, green command/result, acceptance path or N/A + reason, mutation note when acceptance changed, CRAP notes for new branches.
 
 ## Extension API (use these tools)
