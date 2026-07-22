@@ -157,6 +157,16 @@ bdd_record_evidence
 
 Without `synthesisPath`, **`bdd_handoff` fails** for that review/ux run (R3).
 
+### Collect members (P0.3)
+
+```text
+/fleet collect <runId>
+# or tool fleet_collect
+```
+
+Copies `status.json` + `output-*.log` / artifact markdown into  
+`.pi/fleet-runs/<runId>/members/` and writes `collect.json`.
+
 ---
 
 ## Commands quick list
@@ -244,4 +254,4 @@ User fleet models/caps: `~/.pi/agent/fleet.json`
 
 ---
 
-*Last updated with P0.2 run ledger (runId, plan.json, fleetRuns, synthesis gate on handoff).*
+*Last updated with P0.3 fleet_collect + #2514 fleet-review fixes on app branch.*

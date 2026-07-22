@@ -309,7 +309,8 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 			// never break session_start
 		}
 		const active = new Set(pi.getActiveTools());
-		for (const name of ["fleet_plan", "fleet_dispatch", "fleet_status"]) active.add(name);
+		for (const name of ["fleet_plan", "fleet_dispatch", "fleet_status", "fleet_collect"])
+			active.add(name);
 		pi.setActiveTools([...active]);
 	});
 
@@ -499,15 +500,55 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 		},
 	});
 
+	const collectTool = defineTool({
+		name: "fleet_collect",
+		label: "Fleet Collect",
+		description:
+			"Snapshot a fleet run's status and member outputs into .pi/fleet-runs/<runId>/members/. " +
+			"Pass runId from dispatch ledger; optional asyncDir from ledger.",
+		parameters: Type.Object({
+			runId: Type.String({ description: "Fleet run id from dispatch" }),
+			asyncDir: Type.Optional(
+				Type.String({ description: "pi-subagents asyncDir if known" }),
+			),
+		}),
+		async execute(_id, params, _signal, _onUpdate, ctx) {
+			const { collectFleetRun, formatCollectReport } = await import("../lib/fleet/collect.ts");
+			const cwd = (ctx as ExtensionContext | undefined)?.cwd ?? process.cwd();
+			const runId = String(params.runId);
+			let asyncDir = params.asyncDir ? String(params.asyncDir) : undefined;
+			if (!asyncDir && ctx && "sessionManager" in (ctx as object)) {
+				try {
+					const branch = (ctx as ExtensionContext).sessionManager.getBranch() as Array<{
+						type?: string;
+						customType?: string;
+						data?: unknown;
+					}>;
+					const { collectFleetRunsFromBranch } = await import("../lib/fleet/run-ledger.ts");
+					const rec = collectFleetRunsFromBranch(branch).find((r) => r.runId === runId);
+					asyncDir = rec?.asyncDir;
+				} catch {
+					// ignore
+				}
+			}
+			const result = collectFleetRun({ cwd, runId, asyncDir });
+			return {
+				content: [{ type: "text", text: formatCollectReport(result) }],
+				details: { ok: true, result },
+			};
+		},
+	});
+
 	pi.registerTool(planTool);
 	pi.registerTool(dispatchTool);
 	pi.registerTool(statusTool);
+	pi.registerTool(collectTool);
 
 	pi.registerCommand("fleet", {
 		description:
 			"Agentic fleet: research|review|ux <count> <topic> | status | plan …",
 		getArgumentCompletions: (prefix) => {
-			const opts = ["research", "review", "ux", "status", "plan", "dispatch"];
+			const opts = ["research", "review", "ux", "status", "plan", "dispatch", "collect", "init-caps"];
 			return opts
 				.filter((o) => o.startsWith(prefix.trim().split(/\s+/)[0] ?? ""))
 				.map((value) => ({ value, label: value }));
@@ -515,6 +556,33 @@ export default function agenticFleetExtension(pi: ExtensionAPI): void {
 		handler: async (args, ctx) => {
 			lastCtx = ctx;
 			const raw = args.trim();
+			if (raw.startsWith("collect")) {
+				const runId = raw.replace(/^collect\s*/, "").trim();
+				if (!runId) {
+					ctx.ui.notify("Usage: /fleet collect <runId>", "warning");
+					return;
+				}
+				const { collectFleetRun, formatCollectReport } = await import("../lib/fleet/collect.ts");
+				const { collectFleetRunsFromBranch } = await import("../lib/fleet/run-ledger.ts");
+				let asyncDir: string | undefined;
+				try {
+					const branch = ctx.sessionManager.getBranch() as Array<{
+						type?: string;
+						customType?: string;
+						data?: unknown;
+					}>;
+					asyncDir = collectFleetRunsFromBranch(branch).find((r) => r.runId === runId)?.asyncDir;
+				} catch {
+					// ignore
+				}
+				const result = collectFleetRun({ cwd: ctx.cwd, runId, asyncDir });
+				pi.sendMessage(
+					{ customType: "fleet-collect", content: formatCollectReport(result), display: true },
+					{ triggerTurn: false },
+				);
+				return;
+			}
+
 			if (raw === "init-caps") {
 				const user = loadFleetUserConfig();
 				const caps = resolveCaps(user);
