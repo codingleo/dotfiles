@@ -861,9 +861,13 @@ export default function bddModeExtension(pi: ExtensionAPI): void {
 					{
 						customType: "agentic-ship",
 						content:
-							"Use skill **ship** (or prompt `/ship <focus>`). " +
-							"Pipeline: discovery → formulation → red → green → verify → fleet review (N=3) → collect → synthesis → handoff.\n" +
-							"Run: load skill ship, then follow it for the current focus.",
+							"Load skill **ship** (or `/ship <focus>`).\n\n" +
+							"**Step 0 — workspace (STOP):** show git branch/cwd/status, then ask the user to pick:\n" +
+							"- **A** new branch in this checkout\n" +
+							"- **B** new git worktree + branch (continue ship in that cwd)\n" +
+							"- **C** stay on current branch/worktree\n" +
+							"Do not create branch/worktree or start discovery until they answer.\n\n" +
+							"Then: discovery → formulation → red → green → verify → fleet review (N=3) → collect → synthesis → handoff.",
 						display: true,
 					},
 					{ triggerTurn: true },

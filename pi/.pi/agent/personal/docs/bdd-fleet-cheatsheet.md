@@ -185,7 +185,7 @@ Copies `status.json` + `output-*.log` / artifact markdown into
 | `/bdd handoff` | Evidence block + missing fields |
 | `/bdd handoff pr` | Same + GitHub PR body |
 | `/bdd doctor` · `/agentic doctor` | Diagnostics (BDD/fleet/auth/typebox/RPC) |
-| `/agentic ship` · skill `ship` · `/ship` | Full discovery→handoff recipe |
+| `/agentic ship` · skill `ship` · `/ship` | Full recipe; **first** confirm A branch / B worktree / C stay |
 | `bdd_assert_mutation` | Command-backed fail→pass mutation |
 | `/fleet collect <runId>` | Snapshot member outputs |
 | `/fleet review [topic]` | Review fleet (**default N=3**) |
